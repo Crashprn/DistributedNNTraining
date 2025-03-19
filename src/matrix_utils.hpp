@@ -3,6 +3,7 @@
 #include <math.h>
 #include <random>
 #include <iostream>
+#include <limits>
 
 /*
 Copy the contents of the source matrix to the destination matrix.
@@ -42,6 +43,17 @@ IN:
     axis: The axis to sum along. 0 for columns, 1 for rows.
 */
 void m_sum(const float* input, float* output, int rows, int cols, int axis);
+
+/*
+Find the index of the maximum element in a matrix along a given axis.ADJ_SETOFFSET
+IN:
+    input: The input matrix. rows x cols
+    output: The output matrix. 1 x cols or rows x 1
+    rows: The number of rows in the input matrix.
+    cols: The number of columns in the input matrix.
+    axis: The axis to find the maximum along. 0 for columns, 1 for rows.
+*/
+void m_argmax(const float* input, int* output, int rows, int cols, int axis);
 
 /*
 Add input2 matrix into input1 matrix element-wise.

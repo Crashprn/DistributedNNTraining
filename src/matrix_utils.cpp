@@ -34,15 +34,18 @@ void m_copy_row(const float* src, float* dest, int src_row, int dest_row, int ro
 
 void m_sum(const float* input, float* output, int rows, int cols, int axis)
 {
+    double temp_sum;
     if (axis == 0)
     {
         // Sum along columns
         for (int j = 0; j < cols; ++j)
         {
+            temp_sum = 0.0;
             for (int i = 0; i < rows; ++i)
             {
-                output[j] += input[i*cols + j];
+                temp_sum += input[i*cols + j];
             }
+            output[j] = static_cast<float>(temp_sum);
         }
     }
     else if (axis == 1)
@@ -50,10 +53,52 @@ void m_sum(const float* input, float* output, int rows, int cols, int axis)
         // Sum along rows
         for (int i = 0; i < rows; ++i)
         {
+            temp_sum = 0.0;
             for (int j = 0; j < cols; ++j)
             {
-                output[i] += input[i*cols + j];
+                temp_sum += input[i*cols + j];
             }
+            output[i] = static_cast<float>(temp_sum);
+        }
+    }
+}
+
+void m_argmax(const float* input, int* output, int rows, int cols, int axis)
+{
+    if (axis == 0)
+    {
+        // Sum along columns
+        for (int j = 0; j < cols; ++j)
+        {   
+            int max_index = -1;
+            float max_val = std::numeric_limits<float>::lowest();
+            for (int i = 0; i < rows; ++i)
+            {
+                if (input[i*cols + j] > max_val)
+                {
+                    max_val = input[i*cols + j];
+                    max_index = i;
+                }
+            }
+            output[j] = max_index;
+        }
+    }
+    else if (axis == 1)
+    {
+        // Sum along rows
+        for (int i = 0; i < rows; ++i)
+        {
+            int max_index = -1;
+            float max_val = std::numeric_limits<float>::lowest();
+            for (int j = 0; j < cols; ++j)
+            {
+                if (input[i*cols + j] > max_val)
+                {
+                    max_val = input[i*cols + j];
+                    max_index = j;
+                }
+            }
+            output[i] = max_index;
         }
     }
 }

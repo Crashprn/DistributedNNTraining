@@ -48,17 +48,20 @@ void training_loop(
     float* z3 = new float[batch_size * hidden_layer_size];
     float* z4 = new float[batch_size * output_layer_size];
 
-    // Initializing an output matrix
+    // Initializing an output matrix and class vector
     float* y_hat = new float[batch_size * output_layer_size];
+    int* y_class = new int[batch_size * 1];
 
     // Creating matrice for batch of data
     float* batch_x = new float[batch_size * input_layer_size]; // batch_size x input_layer_size
     float* batch_x_T = new float[input_layer_size * batch_size]; // input_layer_size x batch_size
     float* batch_y = new float[batch_size * train_y_cols]; // batch_size x 1
+    float batch_size_f = static_cast<float>(batch_size);
 
     // Initializing weights and biases
-    std::mt19937 normal(42);
-    std::mt19937 unif(42);
+    std::random_device rd;
+    std::mt19937 normal(rd());
+    std::mt19937 unif(rd());
 
     std::cout << "Initializing weights..." << std::endl;
     m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
@@ -67,10 +70,11 @@ void training_loop(
     m_he_weight_init(w4, hidden_layer_size, output_layer_size, normal);
 
     std::cout << "Initializing biases..." << std::endl;
-    m_he_weight_init(b1, 1, hidden_layer_size, normal);
-    m_he_weight_init(b2, 1, hidden_layer_size, normal);
-    m_he_weight_init(b3, 1, hidden_layer_size, normal);
-    m_he_weight_init(b4, 1, output_layer_size, normal);
+    //float bias_init = 0.1f;
+    m_xavier_weight_init(b1, hidden_layer_size, 1, unif);
+    m_xavier_weight_init(b2, hidden_layer_size, 1, unif);
+    m_xavier_weight_init(b3, hidden_layer_size, 1, unif);
+    m_xavier_weight_init(b4, output_layer_size, 1, unif);
 
     std::cout << "Weights and biases initialized." << std::endl;
 
@@ -112,17 +116,17 @@ void training_loop(
         backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims);
 
         // Update weights and biases then assign to copy
-        m_scalar_mul(dw1, learning_rate, input_layer_size, hidden_layer_size);
-        m_scalar_mul(dw2, learning_rate, hidden_layer_size, hidden_layer_size);
-        m_scalar_mul(dw3, learning_rate, hidden_layer_size, hidden_layer_size);
-        m_scalar_mul(dw4, learning_rate, hidden_layer_size, output_layer_size);
+        m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
+        m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
 
-        m_scalar_mul(db1, learning_rate, 1, hidden_layer_size);
-        m_scalar_mul(db2, learning_rate, 1, hidden_layer_size);
-        m_scalar_mul(db3, learning_rate, 1, hidden_layer_size);
-        m_scalar_mul(db4, learning_rate, 1, output_layer_size);
-
-        m_sub(w1, dw1, input_layer_size, hidden_layer_size);
+        m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
+        m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
+        m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
+        m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
+        
+        m_sub(w1, dw1, input_layer_size , hidden_layer_size);
         m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
         m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
         m_sub(w4, dw4, hidden_layer_size, output_layer_size);
@@ -132,10 +136,12 @@ void training_loop(
         m_sub(b3, db3, 1, hidden_layer_size);
         m_sub(b4, db4, 1, output_layer_size);
 
-        if (epoch % 1 == 0)
+        if (epoch % 10 == 0)
         {
+            m_argmax(y_hat, y_class, batch_size, output_layer_size, 1);
+            float acc = accuracy(y_class, batch_y, batch_size);
             float loss = cross_entropy_loss(y_hat, batch_y, batch_size, output_layer_size);
-            std::cout << "Epoch: " << epoch << "---" << "Loss: " << loss << std::endl;
+            std::cout << "Epoch: " << epoch << "---" << "Loss: " << loss << " Accuracy: " << acc << std::endl;
         }
 
     }

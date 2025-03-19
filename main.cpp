@@ -24,16 +24,14 @@ int count_non_zero(const float* matrix, int rows, int cols)
 int main()
 {
     int mnist_cols = 28*28;
-    int mnist_rows = 1000;
+    int mnist_rows = 3000;
 
     float* mnist_train_x = new float[mnist_rows * mnist_cols];
     float* mnist_train_y = new float[mnist_rows * 1];
 
-    //std::string mnist_train_x_file = "../data/mnist_x.csv";
-    //std::string mnist_train_y_file = "../data/mnist_y.csv";
 
-    std::string mnist_train_x_file = "data/mnist_x.csv";
-    std::string mnist_train_y_file = "data/mnist_y.csv";
+    std::string mnist_train_x_file = "../data/mnist_x.csv";
+    std::string mnist_train_y_file = "../data/mnist_y.csv";
 
     try
     {
@@ -45,16 +43,17 @@ int main()
         std::cerr << e.what() << std::endl;
         return 1;
     }
+
     std::cout << "Successfully read data from files." << std::endl;
     m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
     std::cout << "Successfully normalized data." << std::endl;
 
     int input_layer_size = mnist_cols;
-    int hidden_layer_size = 100;
+    int hidden_layer_size = 300;
     int output_layer_size = 10;
-    int num_epochs = 10;
-    float learning_rate = 0.00001f;
-    int batch_size = 64;
+    int num_epochs = 1000;
+    float learning_rate = 0.01f;
+    int batch_size = 50;
 
     training_loop(
         mnist_train_x,

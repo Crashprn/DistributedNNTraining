@@ -13,7 +13,7 @@ void read_matrix_from_file(const std::string& filename, float* matrix, int rows,
     
         if (input_stream.fail())
         {
-            throw std::runtime_error("Could not open file: " + filename);
+            throw std::runtime_error("Could not open file: " + full_path);
         }
 
     
@@ -25,6 +25,7 @@ void read_matrix_from_file(const std::string& filename, float* matrix, int rows,
     {
         std::getline(input_stream, line, '\n');
 
+        // Get all values before a comma
         decltype(line.size()) found = 0;
         int found_nums = 0;
         for (long unsigned int idx = 0; idx < line.size(); ++idx)
@@ -37,6 +38,9 @@ void read_matrix_from_file(const std::string& filename, float* matrix, int rows,
                 found_nums++;
             }
         }
+        // Get the last value after the last comma
+        std::string value = line.substr(found, line.size() - found);
+        matrix[i * cols + found_nums] = std::stof(value);
     }
     input_stream.close();
 }
