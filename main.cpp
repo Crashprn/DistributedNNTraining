@@ -1,5 +1,10 @@
 #include <iostream>
 #include <filesystem>
+#include <chrono>
+
+#ifdef _OPENMP
+    #include <omp.h>
+#endif
 
 #include "src/matrix_utils.hpp"
 #include "src/data_utils.hpp"
@@ -21,8 +26,27 @@ int count_non_zero(const float* matrix, int rows, int cols)
 }
 
 
-int main()
+int main(int argc, char* argv[])
 {
+
+    int threads, num_epochs, batch_size;
+
+    if (argc < 4)
+    {
+        std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size>" << std::endl;
+        threads = 1;
+        num_epochs = 10;
+        batch_size = 32;
+    }
+    else
+    {
+        threads = std::stoi(argv[1]);
+        num_epochs = std::stoi(argv[2]);
+        batch_size = std::stoi(argv[3]);
+
+    }
+
+    
     int mnist_cols = 28*28;
     int mnist_rows = 3000;
 
@@ -51,9 +75,11 @@ int main()
     int input_layer_size = mnist_cols;
     int hidden_layer_size = 300;
     int output_layer_size = 10;
-    int num_epochs = 1000;
-    float learning_rate = 0.01f;
-    int batch_size = 50;
+    float learning_rate = 0.005f;
+
+    std::cout << "Starting training loop..." << std::endl;
+    // Timing the training loop
+    auto start = std::chrono::high_resolution_clock::now();
 
     training_loop(
         mnist_train_x,
@@ -65,8 +91,13 @@ int main()
         hidden_layer_size,
         num_epochs,
         batch_size,
-        learning_rate
+        learning_rate,
+        threads
     );
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "Training loop took " << duration.count() << " seconds." << std::endl;
 
     return 0;
 }

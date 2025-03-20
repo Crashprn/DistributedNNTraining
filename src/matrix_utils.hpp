@@ -5,6 +5,10 @@
 #include <iostream>
 #include <limits>
 
+#ifdef _OPENMP
+    #include <omp.h>
+#endif
+
 /*
 Copy the contents of the source matrix to the destination matrix.
 The source and destination matrices must have the same dimensions.

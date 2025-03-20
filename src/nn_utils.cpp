@@ -2,6 +2,7 @@
 
 void m_index_to_one_hot(float* input, float* output, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < cols; ++j)
@@ -21,6 +22,7 @@ void m_index_to_one_hot(float* input, float* output, int rows, int cols)
 
 void m_Relu(float* input, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows * cols; ++i)
     {
         if (input[i] < 0.0)
@@ -32,6 +34,7 @@ void m_Relu(float* input, int rows, int cols)
 
 void m_Relu_deriv(float* input, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows * cols; ++i)
     {
         if (input[i] < 0.0)
@@ -46,7 +49,8 @@ void m_Relu_deriv(float* input, int rows, int cols)
 }
 
 void m_softmax(float* input, int rows, int cols)
-{
+{   
+    #pragma omp for
     for (int i = 0; i < rows; ++i)
     {
         float* start_in = &input[i*cols];
@@ -54,19 +58,9 @@ void m_softmax(float* input, int rows, int cols)
     }
 }
 
+// DO NOT MULTI-THREAD
 void v_softmax(float* input, int n)
 {
-    // Find the maximum value in the input array
-    /*
-    float max_val = input[0];
-    for (int i = 1; i < n; ++i)
-    {
-        if (input[i] > max_val)
-        {
-            max_val = input[i];
-        }
-    }
-    */
     // Loop through the input array and calculate the exponential of each element
     float sum = 0.0;
     for (int i = 0; i < n; ++i)
@@ -84,6 +78,7 @@ void v_softmax(float* input, int n)
 float cross_entropy_loss(float* y_hat, float* y, int rows, int cols)
 {
     float loss = 0.0;
+    //#pragma omp for reduction(+:loss)
     for (int i = 0; i < rows; ++i)
     {
         int col_idx = static_cast<int>(y[i]);
@@ -95,23 +90,23 @@ float cross_entropy_loss(float* y_hat, float* y, int rows, int cols)
 float accuracy(const int* y_hat, const float* y, int rows)
 {
     int correct = 0;
+    //#pragma omp for reduction(+:correct)
     for (int i = 0; i < rows; ++i)
     {
         int label = static_cast<int>(y[i]);
         if (label == y_hat[i])
         {
-            correct++;
+            correct += 1;
         }
     }
     return static_cast<float>(correct) / static_cast<float>(rows);
 }
 
-
+// DO NOT MULTI-THREAD: Random number generation is not thread-safe
 void m_he_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &gen)
 {
     float normalize = 2.0f / sqrt(static_cast<float>(rows));
     std::normal_distribution<float> dist(0.0, normalize);
-
     for (int i = 0 ; i < rows * cols; ++i)
     {
         weight_mat[i] = dist(gen);
@@ -119,6 +114,7 @@ void m_he_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &gen)
 
 }
 
+// DO NOT MULTI-THREAD: Random number generation is not thread-safe
 void m_xavier_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &gen)
 {
     float normalize = 1.0f / sqrt(static_cast<float>(rows));
@@ -132,6 +128,7 @@ void m_xavier_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &g
 
 void m_constant_weight_init(float* weight_mat, int rows, int cols, float value)
 {
+    #pragma omp for
     for (int i = 0 ; i < rows * cols; ++i)
     {
         weight_mat[i] = value;

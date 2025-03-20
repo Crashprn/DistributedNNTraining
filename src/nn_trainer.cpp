@@ -10,7 +10,8 @@ void training_loop(
     int hidden_layer_size,
     int epochs,
     int batch_size,
-    float learning_rate
+    float learning_rate,
+    int threads
 )
 {
     int input_layer_size = train_x_cols;
@@ -57,6 +58,7 @@ void training_loop(
     float* batch_x_T = new float[input_layer_size * batch_size]; // input_layer_size x batch_size
     float* batch_y = new float[batch_size * train_y_cols]; // batch_size x 1
     float batch_size_f = static_cast<float>(batch_size);
+    int* batch_indices = new int[batch_size];
 
     // Initializing weights and biases
     std::random_device rd;
@@ -78,24 +80,38 @@ void training_loop(
 
     std::cout << "Weights and biases initialized." << std::endl;
 
+    // Defining forward inputs
+    std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
+    std::tuple<float*, float*, float*, float*> biases = std::make_tuple(b1, b2, b3, b4);
+    std::tuple<float*, int, int> b_input = std::make_tuple(batch_x, batch_size, input_layer_size);
+    std::tuple<float*, float*, float*, float*> z_values = std::make_tuple(z1, z2, z3, z4); 
+    std::tuple<int, int, int, int> dims = std::make_tuple(hidden_layer_size, hidden_layer_size, hidden_layer_size, output_layer_size);
+
+    // Defining backward inputs
+    std::tuple<float*, float*, float*> weights_T = std::make_tuple(w2_T, w3_T, w4_T);
+    std::tuple<float*, float*, float*, float*> weight_grads = std::make_tuple(dw1, dw2, dw3, dw4);
+    std::tuple<float*, float*, float*, float*> bias_grads = std::make_tuple(db1, db2, db3, db4);
+    std::tuple<float*, int, int> b_input_T = std::make_tuple(batch_x_T, input_layer_size, batch_size);
+    std::tuple<float*, int, int> target = std::make_tuple(batch_y, batch_size, output_layer_size);
+
+    #pragma omp parallel for num_threads(threads)
+    {
     // Training loop
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
+        #pragma omp single
+        random_index(batch_indices, batch_size, train_rows, unif);
 
+        
         for (int i = 0; i < batch_size; ++i)
         {
-            int index = random_index(train_rows, unif);
+            int index = batch_indices[i];
             m_copy_row(train_x, batch_x, index, i, train_rows, batch_size, input_layer_size);
             m_copy_row(train_y, batch_y, index, i, train_rows, batch_size, train_y_cols);
         }
 
         // Forward pass
-        std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
-        std::tuple<float*, float*, float*, float*> biases = std::make_tuple(b1, b2, b3, b4);
-        std::tuple<float*, int, int> b_input = std::make_tuple(batch_x, batch_size, input_layer_size);
-        std::tuple<float*, float*, float*, float*> z_values = std::make_tuple(z1, z2, z3, z4); 
-        std::tuple<int, int, int, int> dims = std::make_tuple(hidden_layer_size, hidden_layer_size, hidden_layer_size, output_layer_size);
-
+        
         forward_pass(weights, biases, b_input, z_values, dims);
         m_copy(z4, y_hat, batch_size, output_layer_size);
 
@@ -107,12 +123,7 @@ void training_loop(
 
         m_transpose(batch_x, batch_x_T, input_layer_size, batch_size);
 
-        std::tuple<float*, float*, float*> weights_T = std::make_tuple(w2_T, w3_T, w4_T);
-        std::tuple<float*, float*, float*, float*> weight_grads = std::make_tuple(dw1, dw2, dw3, dw4);
-        std::tuple<float*, float*, float*, float*> bias_grads = std::make_tuple(db1, db2, db3, db4);
-        std::tuple<float*, int, int> b_input_T = std::make_tuple(batch_x_T, input_layer_size, batch_size);
-        std::tuple<float*, int, int> target = std::make_tuple(batch_y, batch_size, output_layer_size);
-
+        
         backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims);
 
         // Update weights and biases then assign to copy
@@ -136,14 +147,17 @@ void training_loop(
         m_sub(b3, db3, 1, hidden_layer_size);
         m_sub(b4, db4, 1, output_layer_size);
 
-        if (epoch % 10 == 0)
+        #pragma omp single
+        {
+        if (epoch % 1 == 0)
         {
             m_argmax(y_hat, y_class, batch_size, output_layer_size, 1);
             float acc = accuracy(y_class, batch_y, batch_size);
             float loss = cross_entropy_loss(y_hat, batch_y, batch_size, output_layer_size);
             std::cout << "Epoch: " << epoch << "---" << "Loss: " << loss << " Accuracy: " << acc << std::endl;
         }
-
+        }
+    }
     }
 
 
@@ -177,9 +191,12 @@ void training_loop(
     delete[] batch_y;
 }
 
-int random_index(int max_value, std::mt19937& gen)
+// DO NOT MULTITHREAD THIS FUNCTION: Distribution is not thread safe
+void random_index(int* batch_indices, int size, int max_value, std::mt19937& gen)
 {
     std::uniform_int_distribution<> dis(0, max_value - 1);
-
-    return dis(gen);
+    for (int i = 0; i < size; ++i)
+    {
+        batch_indices[i] = dis(gen);
+    }
 }

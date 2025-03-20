@@ -1,9 +1,10 @@
 #pragma once
 
 #include "matrix_utils.hpp"
+#include "data_utils.hpp"
 #include <tuple>
 #include <math.h>
-#include "data_utils.hpp"
+#include <omp.h>
 
 void m_index_to_one_hot(int* input, float* output, int rows, int cols);
 void m_softmax(float* input, int rows, int cols);

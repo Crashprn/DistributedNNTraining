@@ -7,6 +7,9 @@
 #include <iostream>
 #include <tuple>
 
+#ifdef _OPENMP
+    #include <omp.h>
+#endif
 
 void training_loop(
     float* train_x,
@@ -18,9 +21,10 @@ void training_loop(
     int hidden_layer_size,
     int epochs,
     int batch_size,
-    float learning_rate
+    float learning_rate,
+    int threads
 );
 
 
-int random_index(int max_value, std::mt19937& gen);
+void random_index(int* batch_indices, int size, int max_value, std::mt19937& gen);
 

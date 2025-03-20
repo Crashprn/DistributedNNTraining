@@ -19,3 +19,7 @@ elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
 endif()
 
+if(OpenMP_CXX_FOUND)
+    target_compile_options(${PROJECT_NAME} PRIVATE -fopenmp)
+    target_link_libraries(${PROJECT_NAME} PRIVATE OpenMP::OpenMP_CXX)
+endif()

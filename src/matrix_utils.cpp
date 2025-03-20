@@ -2,6 +2,7 @@
 
 void m_copy(const float* src, float* dest, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < cols; ++j)
@@ -24,7 +25,7 @@ void m_copy_row(const float* src, float* dest, int src_row, int dest_row, int ro
         return;
     }
 
-
+    #pragma omp for
     for (int j = 0; j < cols; ++j)
     {
         dest[dest_row * cols + j] = src[src_row * cols + j];
@@ -34,13 +35,13 @@ void m_copy_row(const float* src, float* dest, int src_row, int dest_row, int ro
 
 void m_sum(const float* input, float* output, int rows, int cols, int axis)
 {
-    double temp_sum;
     if (axis == 0)
     {
         // Sum along columns
+        #pragma omp for
         for (int j = 0; j < cols; ++j)
         {
-            temp_sum = 0.0;
+            double temp_sum = 0.0;
             for (int i = 0; i < rows; ++i)
             {
                 temp_sum += input[i*cols + j];
@@ -51,9 +52,10 @@ void m_sum(const float* input, float* output, int rows, int cols, int axis)
     else if (axis == 1)
     {
         // Sum along rows
+        #pragma omp for
         for (int i = 0; i < rows; ++i)
         {
-            temp_sum = 0.0;
+            double temp_sum = 0.0;
             for (int j = 0; j < cols; ++j)
             {
                 temp_sum += input[i*cols + j];
@@ -68,6 +70,7 @@ void m_argmax(const float* input, int* output, int rows, int cols, int axis)
     if (axis == 0)
     {
         // Sum along columns
+        #pragma omp for
         for (int j = 0; j < cols; ++j)
         {   
             int max_index = -1;
@@ -86,6 +89,7 @@ void m_argmax(const float* input, int* output, int rows, int cols, int axis)
     else if (axis == 1)
     {
         // Sum along rows
+        #pragma omp for
         for (int i = 0; i < rows; ++i)
         {
             int max_index = -1;
@@ -108,6 +112,7 @@ void m_argmax(const float* input, int* output, int rows, int cols, int axis)
 void m_add(float* input1, const float* input2, int rows, int cols)
 {   
     // Addition has no ordering so one just simply needs to loop through the elements and add them.
+    #pragma omp for
     for (int i = 0; i < rows * cols; ++i)
     {
         input1[i] = input1[i] + input2[i]; 
@@ -120,6 +125,7 @@ void m_add_v(float* input1_m, const float* input2_v, int rows1, int cols1, int r
     if (rows1 == rows2)
     {
         // Loop through rows and add the vector to each column of the matrix
+        #pragma omp for
         for (int i = 0; i < rows1; ++i)
         {
             for (int j = 0; j < cols1; ++j)
@@ -131,6 +137,7 @@ void m_add_v(float* input1_m, const float* input2_v, int rows1, int cols1, int r
     else if (cols1 == cols2)
     {
         // Loop through the rows of the matrix and add the vector to each row of the matrix
+        #pragma omp for
         for (int i = 0; i < rows1; ++i)
         {
             for (int j = 0; j < cols1; ++j)
@@ -149,6 +156,7 @@ void m_add_v(float* input1_m, const float* input2_v, int rows1, int cols1, int r
 void m_sub(float* input1, const float* input2, int rows, int cols)
 {
     // Subtraction has no ordering so one just simply needs to loop through the elements and subtract them.
+    #pragma omp for
     for (int i = 0; i < rows * cols; ++i)
     {
         input1[i] = input1[i] - input2[i]; 
@@ -165,6 +173,7 @@ void m_mul(const float* input1, const float* input2, float* output, int rows1, i
     }
 
     // Loop through rows in input1
+    #pragma omp for
     for (int i = 0; i < rows1; ++i)
     {
         // Loop through columns in input2
@@ -185,6 +194,7 @@ void m_mul(const float* input1, const float* input2, float* output, int rows1, i
 void m_scalar_mul(float* input, float scalar, int rows, int cols)
 {
     // Scalar multiplication has no ordering so one just simply needs to loop through the elements and multiply them.
+    #pragma omp for
     for (int i = 0; i < rows * cols; ++i)
     {
         input[i] = input[i] * scalar;
@@ -194,6 +204,7 @@ void m_scalar_mul(float* input, float scalar, int rows, int cols)
 
 void m_transpose(const float* input, float* output, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows; ++i)
     {
         for (int j = 0; j < cols; ++j)
@@ -206,6 +217,7 @@ void m_transpose(const float* input, float* output, int rows, int cols)
 
 void m_hadamard(float* input1, const float* input2, int rows, int cols)
 {
+    #pragma omp for
     for (int i = 0; i < rows*cols; ++i)
     {
         input1[i] = input1[i] * input2[i];
