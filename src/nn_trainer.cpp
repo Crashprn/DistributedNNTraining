@@ -62,8 +62,8 @@ void training_loop(
 
     // Initializing weights and biases
     std::random_device rd;
-    std::mt19937 normal(rd());
-    std::mt19937 unif(rd());
+    std::mt19937 normal(43);
+    std::mt19937 unif(43);
 
     std::cout << "Initializing weights..." << std::endl;
     m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
