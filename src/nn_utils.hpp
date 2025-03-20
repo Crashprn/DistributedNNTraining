@@ -22,7 +22,8 @@ void forward_pass(
     std::tuple<float*, float*, float*, float*> &biases,
     std::tuple<float*, int, int> input,
     std::tuple<float*, float*, float*, float*> &z,
-    std::tuple<int, int, int, int> &dims
+    std::tuple<int, int, int, int> &dims,
+    int threads
 );
 
 void backward_pass(
@@ -32,5 +33,6 @@ void backward_pass(
     std::tuple<float*, int, int> input_T,
     std::tuple<float*, int, int> target,
     std::tuple<float*, float*, float*, float*> &z,
-    std::tuple<int, int, int, int> &dims
+    std::tuple<int, int, int, int> &dims,
+    int threads
 );

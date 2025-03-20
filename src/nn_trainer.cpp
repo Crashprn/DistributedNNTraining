@@ -94,12 +94,13 @@ void training_loop(
     std::tuple<float*, int, int> b_input_T = std::make_tuple(batch_x_T, input_layer_size, batch_size);
     std::tuple<float*, int, int> target = std::make_tuple(batch_y, batch_size, output_layer_size);
 
-    #pragma omp parallel for num_threads(threads)
-    {
+    std::cout << "Starting training loop..." << std::endl;
+    // Timing the training loop
+    auto start = std::chrono::high_resolution_clock::now();
+
     // Training loop
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
-        #pragma omp single
         random_index(batch_indices, batch_size, train_rows, unif);
 
         
@@ -112,7 +113,7 @@ void training_loop(
 
         // Forward pass
         
-        forward_pass(weights, biases, b_input, z_values, dims);
+        forward_pass(weights, biases, b_input, z_values, dims, threads);
         m_copy(z4, y_hat, batch_size, output_layer_size);
 
         // Backward pass
@@ -124,9 +125,12 @@ void training_loop(
         m_transpose(batch_x, batch_x_T, input_layer_size, batch_size);
 
         
-        backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims);
+        backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims, threads);
 
         // Update weights and biases then assign to copy
+        #pragma omp parallel num_threads(threads)
+        {
+
         m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
         m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
         m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
@@ -146,19 +150,22 @@ void training_loop(
         m_sub(b2, db2, 1, hidden_layer_size);
         m_sub(b3, db3, 1, hidden_layer_size);
         m_sub(b4, db4, 1, output_layer_size);
+        }
 
-        #pragma omp single
-        {
-        if (epoch % 1 == 0)
+        if (epoch % 10 == 0)
         {
             m_argmax(y_hat, y_class, batch_size, output_layer_size, 1);
             float acc = accuracy(y_class, batch_y, batch_size);
             float loss = cross_entropy_loss(y_hat, batch_y, batch_size, output_layer_size);
             std::cout << "Epoch: " << epoch << "---" << "Loss: " << loss << " Accuracy: " << acc << std::endl;
         }
-        }
     }
-    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+
+    std::chrono::duration<double> duration = end - start;
+    std::cout << "Training loop took " << duration.count() << " seconds." << std::endl;
+
 
 
     // Freeing memory

@@ -4,10 +4,7 @@
 #include <random>
 #include <iostream>
 #include <limits>
-
-#ifdef _OPENMP
-    #include <omp.h>
-#endif
+#include <omp.h>
 
 /*
 Copy the contents of the source matrix to the destination matrix.

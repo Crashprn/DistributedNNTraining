@@ -6,10 +6,7 @@
 #include <tuple>
 #include <iostream>
 #include <tuple>
-
-#ifdef _OPENMP
-    #include <omp.h>
-#endif
+#include <omp.h>
 
 void training_loop(
     float* train_x,

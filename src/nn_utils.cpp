@@ -140,9 +140,11 @@ void forward_pass(
     std::tuple<float*, float*, float*, float*> &biases,
     std::tuple<float*, int, int> input,
     std::tuple<float*, float*, float*, float*> &z,
-    std::tuple<int, int, int, int> &dims
+    std::tuple<int, int, int, int> &dims,
+    int threads
 )
 {
+
     float* w1 = std::get<0>(weights);
     float* w2 = std::get<1>(weights);
     float* w3 = std::get<2>(weights);
@@ -171,6 +173,8 @@ void forward_pass(
     float* inter2 = new float[batch_size * h2];
     float* inter3 = new float[batch_size * h3];
     
+    #pragma omp parallel num_threads(threads)
+    {
     // Layer 1
     m_mul(x, w1, z1, batch_size, input_feats, input_feats, h1); // (batch_size, input_cols) * (input_cols, h1) -> (batch_size, h1)
     m_add_v(z1, b1, batch_size, h1, 1, h1); // (batch_size, h1) + (,h1) -> (batch_size, h1)
@@ -193,6 +197,7 @@ void forward_pass(
     m_mul(inter3, w4, z4, batch_size, h3, h3, out_dim); // (batch_size, h3) * (h3, out_dim) -> (batch_size, out_dim)
     m_add_v(z4, b4, batch_size, out_dim, 1, out_dim); // (batch_size, out_dim) + (,out_dim) -> (batch_size, out_dim)
     m_softmax(z4, batch_size, out_dim); // (batch_size, out_dim) -> (batch_size, out_dim)
+    }
 
     delete[] inter1;
     delete[] inter2;
@@ -206,7 +211,8 @@ void backward_pass(
     std::tuple<float*, int, int> input_T,
     std::tuple<float*, int, int> target,
     std::tuple<float*, float*, float*, float*> &z,
-    std::tuple<int, int, int, int> &dims
+    std::tuple<int, int, int, int> &dims,
+    int threads
 )
 {
     int h1 = std::get<0>(dims);
@@ -243,11 +249,27 @@ void backward_pass(
     float* z3 = std::get<2>(z);
     float* z4 = std::get<3>(z);
 
-    
-    // Layer 4 Gradients
+    //Making intermediate arrays
+    // Layer 4
     float* sig_z3 = new float[batch_size*h3];
     float* sig_z3_T = new float[h3*batch_size];
 
+    // Layer 3
+    float* delta3 = new float[batch_size*h3];
+    float* sig_z2 = new float[batch_size*h2];
+    float* sig_z2_T = new float[h2*batch_size];
+
+    // Layer 2
+    float* delta2 = new float[batch_size*h2];
+    float* sig_z1 = new float[batch_size*h1];
+    float* sig_z1_T = new float[h1*batch_size];
+
+    // Layer 1
+    float* delta1 = new float[batch_size*h1];
+
+    #pragma omp parallel num_threads(threads)
+    {
+    // Layer 4 Gradients
     // d4 = S(z4) - y
     m_sub(z4, y_hat, batch_size, out_dim); // (batch_size, out_dim) - (batch_size, out_dim) -> (batch_size, out_dim)
 
@@ -261,10 +283,7 @@ void backward_pass(
     m_mul(sig_z3_T, z4, dw4, h3, batch_size, batch_size, out_dim); // (h3, batch_size) * (batch_size, out_dim) -> (h3, out_dim)
 
     // Layer 3 Gradients
-    float* delta3 = new float[batch_size*h3];
-    float* sig_z2 = new float[batch_size*h2];
-    float* sig_z2_T = new float[h2*batch_size];
-
+    
     // Calculating delta3
     m_mul(z4, w4_T, delta3, batch_size, out_dim, out_dim, h3); // (batch_size, out_dim) * (out_dim, h3) -> (batch_size, h3)
     m_Relu_deriv(z3, batch_size, h3); // (batch_size, h3) -> (batch_size, h3)
@@ -280,10 +299,7 @@ void backward_pass(
     m_mul(sig_z2_T, delta3, dw3, h2, batch_size, batch_size, h3); // (h2, batch_size) * (batch_size, h3) -> (h2, h3)
 
     // Layer 2 Gradients
-    float* delta2 = new float[batch_size*h2];
-    float* sig_z1 = new float[batch_size*h1];
-    float* sig_z1_T = new float[h1*batch_size];
-
+    
     // Calculating delta2
     m_mul(delta3, w3_T, delta2, batch_size, h3, h3, h2); // (batch_size, h3) * (h3, h2) -> (batch_size, h2)
     m_Relu_deriv(z2, batch_size, h2); // (batch_size, h2) -> (batch_size, h2)
@@ -299,7 +315,6 @@ void backward_pass(
     m_mul(sig_z1_T, delta2, dw2, h1, batch_size, batch_size, h2); // (h1, batch_size) * (batch_size, h2) -> (h1, h2)
 
     // Layer 1 Gradients
-    float* delta1 = new float[batch_size*h1];
 
     // Calculating delta1
     m_mul(delta2, w2_T, delta1, batch_size, h2, h2, h1); // (batch_size, h2) * (h2, h1) -> (batch_size, h1)
@@ -311,6 +326,7 @@ void backward_pass(
 
     // grad w = 1/batch_size * x^T * d1
     m_mul(x_T, delta1, dw1, input_feats, batch_size, batch_size, h1); // (input_feats, batch_size) * (batch_size, h1) -> (input_feats, h1)
+    }
 
     delete[] y_hat;
     // Freeing layer 4

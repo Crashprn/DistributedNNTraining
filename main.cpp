@@ -1,10 +1,7 @@
 #include <iostream>
 #include <filesystem>
 #include <chrono>
-
-#ifdef _OPENMP
-    #include <omp.h>
-#endif
+#include <omp.h>
 
 #include "src/matrix_utils.hpp"
 #include "src/data_utils.hpp"
@@ -34,7 +31,7 @@ int main(int argc, char* argv[])
     if (argc < 4)
     {
         std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size>" << std::endl;
-        threads = 1;
+        threads = 2;
         num_epochs = 10;
         batch_size = 32;
     }
@@ -77,9 +74,8 @@ int main(int argc, char* argv[])
     int output_layer_size = 10;
     float learning_rate = 0.005f;
 
-    std::cout << "Starting training loop..." << std::endl;
-    // Timing the training loop
-    auto start = std::chrono::high_resolution_clock::now();
+    
+
 
     training_loop(
         mnist_train_x,
@@ -94,10 +90,6 @@ int main(int argc, char* argv[])
         learning_rate,
         threads
     );
-    auto end = std::chrono::high_resolution_clock::now();
-
-    std::chrono::duration<double> duration = end - start;
-    std::cout << "Training loop took " << duration.count() << " seconds." << std::endl;
-
+    
     return 0;
 }
