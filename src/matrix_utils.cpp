@@ -107,8 +107,6 @@ void m_argmax(const float* input, int* output, int rows, int cols, int axis)
     }
 }
 
-
-
 void m_add(float* input1, const float* input2, int rows, int cols)
 {   
     // Addition has no ordering so one just simply needs to loop through the elements and add them.
