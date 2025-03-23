@@ -20,6 +20,33 @@ void m_index_to_one_hot(float* input, float* output, int rows, int cols)
     }
 }
 
+void m_softmax(float* input, int rows, int cols)
+{   
+    #pragma omp for
+    for (int i = 0; i < rows; ++i)
+    {
+        float* start_in = &input[i*cols];
+        v_softmax(start_in, cols);
+    }
+}
+
+// DO NOT MULTI-THREAD
+void v_softmax(float* input, int n)
+{
+    // Loop through the input array and calculate the exponential of each element
+    float sum = 0.0;
+    for (int i = 0; i < n; ++i)
+    {
+        input[i] = exp(input[i]);
+        sum += input[i];
+    }
+    // Loop through the input array again and divide each element by the sum
+    for (int i = 0; i < n; ++i)
+    {
+        input[i] /= sum;
+    }
+}
+
 void m_Relu(float* input, int rows, int cols)
 {
     #pragma omp for
@@ -45,33 +72,6 @@ void m_Relu_deriv(float* input, int rows, int cols)
         {
             input[i] = 1.0f;
         }
-    }
-}
-
-void m_softmax(float* input, int rows, int cols)
-{   
-    #pragma omp for
-    for (int i = 0; i < rows; ++i)
-    {
-        float* start_in = &input[i*cols];
-        v_softmax(start_in, cols);
-    }
-}
-
-// DO NOT MULTI-THREAD
-void v_softmax(float* input, int n)
-{
-    // Loop through the input array and calculate the exponential of each element
-    float sum = 0.0;
-    for (int i = 0; i < n; ++i)
-    {
-        input[i] = exp(input[i]);
-        sum += input[i];
-    }
-    // Loop through the input array again and divide each element by the sum
-    for (int i = 0; i < n; ++i)
-    {
-        input[i] /= sum;
     }
 }
 

@@ -501,3 +501,173 @@ TEST(Matrix_Utils, Matrix_Hadamard_Single_Thread)
         EXPECT_EQ(src1[i], ans[i]);
     }
 }
+
+TEST(Matrix_Utils, Matrix_Hadamard_Multi_Thread)
+{
+    int threads = 2;
+    float src1[9] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    float src2[9] = {
+        9, 8, 7,
+        6, 5, 4,
+        3, 2, 1
+    };
+    float ans[9] = {9, 16, 21, 24, 25, 24, 21, 16, 9};
+
+    #pragma omp parallel num_threads(threads)
+    m_hadamard(src1, src2, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(src1[i], ans[i]);
+    }
+}
+
+TEST(NN_Utils, Index_To_One_Hot_Single_Thread)
+{
+    float src[3] = {0, 1, 2};
+    float dest[9] = {0};
+    float ans[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+
+    m_index_to_one_hot(src, dest, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(dest[i], ans[i]);
+    }
+}
+
+TEST(NN_Utils, Index_To_One_Hot_Multi_Thread)
+{
+    int threads = 2;
+    float src[3] = {0, 1, 2};
+    float dest[9] = {0};
+    float ans[9] = {1, 0, 0, 0, 1, 0, 0, 0, 1};
+
+    #pragma omp parallel num_threads(threads)
+    m_index_to_one_hot(src, dest, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(dest[i], ans[i]);
+    }
+}
+
+TEST(NN_Utils, Softmax_Single_Thread)
+{
+    float src[9] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    float ans[9] = {
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218,
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218,
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218
+    };
+
+    m_softmax(src, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_NEAR(src[i], ans[i], 1e-6);
+    }
+}
+
+TEST(NN_Utils, Softmax_Multi_Thread)
+{
+    int threads = 2;
+    float src[9] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    float ans[9] = {
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218,
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218,
+        0.09003057317038046, 0.24472847105479764, 0.6652409557748218
+    };
+
+    #pragma omp parallel num_threads(threads)
+    m_softmax(src, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_NEAR(src[i], ans[i], 1e-6);
+    }
+}
+
+TEST(NN_Utils, ReLU_Single_Thread)
+{
+    float src[9] = {
+        1, -2, 3,
+        -4, 5, -6,
+        7, -8, 9
+    };
+    float ans[9] = {
+        1, -0.2, 3,
+        -0.4, 5, -0.6,
+        7, -0.8, 9
+    };
+
+    m_Relu(src, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(src[i], ans[i]);
+    }
+}
+
+TEST(NN_Utils, ReLU_Multi_Thread)
+{
+    int threads = 2;
+    float src[9] = {
+        1, -2, 3,
+        -4, 5, -6,
+        7, -8, 9
+    };
+    float ans[9] = {
+        1, -0.2, 3,
+        -0.4, 5, -0.6,
+        7, -0.8, 9
+    };
+
+    #pragma omp parallel num_threads(threads)
+    m_Relu(src, 3, 3);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(src[i], ans[i]);
+    }
+}
+
+TEST(NN_Utils, Cross_Entropy_Single_Thread)
+{
+    float src1[9] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    float src2[3] = {0, 1, 2};
+
+    float ans = -3.8066624 / 3.0f;
+
+    float loss = cross_entropy_loss(src1, src2, 3, 3);
+
+    EXPECT_NEAR(loss, ans, 1e-6);
+}
+
+TEST(NN_Utils, Accuracy_Single_Thread)
+{
+    int src1[3] = {0, 2, 2};
+    float src2[3] = {0, 1, 2};
+
+    float ans = 2.0f / 3.0f;
+
+    float acc = accuracy(src1, src2, 3);
+
+    EXPECT_EQ(acc, ans);
+}
