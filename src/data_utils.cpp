@@ -9,15 +9,10 @@ void read_matrix_from_file(const std::string& filename, float* matrix, int rows,
     std::string full_path = path.string();
 
     input_stream.open(full_path);
-    std::cout << "Opening file: " << filename << std::endl;
-    
-        if (input_stream.fail())
-        {
-            throw std::runtime_error("Could not open file: " + full_path);
-        }
-
-    
-    
+    if (input_stream.fail())
+    {
+        throw std::runtime_error("Could not open file: " + full_path);
+    }
 
     std::string line;
 

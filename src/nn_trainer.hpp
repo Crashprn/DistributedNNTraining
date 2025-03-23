@@ -7,6 +7,7 @@
 #include <iostream>
 #include <tuple>
 #include <omp.h>
+#include <mpi.h>
 
 void training_loop(
     float* train_x,
@@ -19,7 +20,10 @@ void training_loop(
     int epochs,
     int batch_size,
     float learning_rate,
-    int threads
+    int threads,
+    int my_rank,
+    int comm_size,
+    int MASTER_RANK
 );
 
 
