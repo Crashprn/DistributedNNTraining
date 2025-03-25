@@ -56,4 +56,4 @@ FetchContent_MakeAvailable(googletest)
 target_link_libraries(${UNIT_TEST_RUNNER} PRIVATE gtest gtest_main)
 
 
-target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion -Wuninitialized -O3)
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion -Wuninitialized -O1)
