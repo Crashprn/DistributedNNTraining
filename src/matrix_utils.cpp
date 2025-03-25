@@ -25,7 +25,7 @@ void m_copy_row(const float* src, float* dest, int src_row, int dest_row, int ro
         return;
     }
 
-    #pragma omp for
+    //#pragma omp for
     for (int j = 0; j < cols; ++j)
     {
         dest[dest_row * cols + j] = src[src_row * cols + j];

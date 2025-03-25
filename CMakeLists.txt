@@ -19,7 +19,6 @@ set (HEADER_FILES
     )
 set (TEST_FILES "${PROJECT_SOURCE_DIR}/test.cpp")
 
-
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES} main.cpp)
 add_executable(${UNIT_TEST_RUNNER} ${HEADER_FILES} ${SOURCE_FILES} ${TEST_FILES})
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
@@ -57,10 +56,4 @@ FetchContent_MakeAvailable(googletest)
 target_link_libraries(${UNIT_TEST_RUNNER} PRIVATE gtest gtest_main)
 
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    target_compile_options(${PROJECT_NAME} PRIVATE /W4 /permissive-)
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion -Wuninitialized -O3)
-elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic)
-endif()
+target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -pedantic -Wconversion -Wuninitialized -O3)

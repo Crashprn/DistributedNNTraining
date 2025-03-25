@@ -54,31 +54,29 @@ void training_loop(
         my_batch_size += glob_batch_size % comm_size;
     }
 
-    // Creating global gradients for MASTER_RANK
-    float* glob_dw1, *glob_dw2, *glob_dw3, *glob_dw4;
-    float* glob_db1, *glob_db2, *glob_db3, *glob_db4;
-
-    if (my_rank == MASTER_RANK)
-    {
-        glob_dw1 = new float[input_layer_size * hidden_layer_size];
-        glob_dw2 = new float[hidden_layer_size * hidden_layer_size];
-        glob_dw3 = new float[hidden_layer_size * hidden_layer_size];
-        glob_dw4 = new float[hidden_layer_size * output_layer_size];
-
-        glob_db1 = new float[hidden_layer_size];
-        glob_db2 = new float[hidden_layer_size];
-        glob_db3 = new float[hidden_layer_size];
-        glob_db4 = new float[output_layer_size];
-    }
-
     // Initializing z values for each layer
     float* z1 = new float[my_batch_size * hidden_layer_size];
     float* z2 = new float[my_batch_size * hidden_layer_size];
     float* z3 = new float[my_batch_size * hidden_layer_size];
     float* z4 = new float[my_batch_size * output_layer_size];
 
+    // Initializing a values for each layer * z4 will be a4
+    float* a1 = new float[my_batch_size * hidden_layer_size];
+    float* a2 = new float[my_batch_size * hidden_layer_size];
+    float* a3 = new float[my_batch_size * hidden_layer_size];
+
+    // Initializing intermediates for backward pass
+    float* a3_T = new float[hidden_layer_size*my_batch_size];
+    float* a2_T = new float[hidden_layer_size*my_batch_size];
+    float* a1_T = new float[hidden_layer_size*my_batch_size];
+
+    float* delta3 = new float[my_batch_size*hidden_layer_size];
+    float* delta2 = new float[my_batch_size*hidden_layer_size];
+    float* delta1 = new float[my_batch_size*hidden_layer_size];
+
     // Initializing an output matrix and class vector
-    float* y_hat = new float[my_batch_size * output_layer_size];
+    float* y_pred = new float[my_batch_size * output_layer_size];
+    float* y_targ = new float[my_batch_size * output_layer_size];
     int* y_class = new int[my_batch_size * 1];
 
     // Creating matrices for batch of data
@@ -133,30 +131,24 @@ void training_loop(
         }
     }
 
-    // Broadcasting weights and biases
-    MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(w4, hidden_layer_size * output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-
-    MPI_Bcast(b1, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    
 
     // Defining forward inputs
     std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
     std::tuple<float*, float*, float*, float*> biases = std::make_tuple(b1, b2, b3, b4);
     std::tuple<float*, int, int> b_input = std::make_tuple(my_batch_x, my_batch_size, input_layer_size);
     std::tuple<float*, float*, float*, float*> z_values = std::make_tuple(z1, z2, z3, z4); 
+    std::tuple<float*, float*, float*> a_values = std::make_tuple(a1, a2, a3);
     std::tuple<int, int, int, int> dims = std::make_tuple(hidden_layer_size, hidden_layer_size, hidden_layer_size, output_layer_size);
 
     // Defining backward inputs
     std::tuple<float*, float*, float*> weights_T = std::make_tuple(w2_T, w3_T, w4_T);
     std::tuple<float*, float*, float*, float*> weight_grads = std::make_tuple(dw1, dw2, dw3, dw4);
     std::tuple<float*, float*, float*, float*> bias_grads = std::make_tuple(db1, db2, db3, db4);
+    std::tuple<float*, float*, float*> a_values_T = std::make_tuple(a1_T, a2_T, a3_T);
+    std::tuple<float*, float*, float*> deltas = std::make_tuple(delta1, delta2, delta3);
     std::tuple<float*, int, int> b_input_T = std::make_tuple(my_batch_x_T, input_layer_size, my_batch_size);
-    std::tuple<float*, int, int> target = std::make_tuple(my_batch_y, my_batch_size, output_layer_size);
+    std::tuple<float*, int, int> target = std::make_tuple(y_targ, my_batch_size, output_layer_size);
 
     if (my_rank == MASTER_RANK)
     {
@@ -176,66 +168,8 @@ void training_loop(
 
         // Scattering batch indices
         MPI_Scatterv(batch_indices, count_per_process, displs, MPI_INT, my_batch_indices, my_batch_size, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
-        
-        for (int i = 0; i < my_batch_size; ++i)
-        {
-            m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
-            m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
-        }
 
-        // Forward pass
-        
-        forward_pass(weights, biases, b_input, z_values, dims, threads);
-        m_copy(z4, y_hat, my_batch_size, output_layer_size);
-
-
-        // Backward pass
-        m_transpose(w1, w1_T, input_layer_size, hidden_layer_size);
-        m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
-        m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
-        m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
-        m_transpose(my_batch_x, my_batch_x_T, input_layer_size, my_batch_size);
-
-        backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims, threads);
-
-        // Reduce gradients
-        MPI_Reduce(dw1, glob_dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(dw2, glob_dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(dw3, glob_dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(dw4, glob_dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-        MPI_Reduce(db1, glob_db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(db2, glob_db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(db3, glob_db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Reduce(db4, glob_db4, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-        // Update weights and biases
-        if (my_rank == MASTER_RANK)
-        {
-            #pragma omp parallel num_threads(threads)
-            {
-            m_scalar_mul(glob_dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
-            m_scalar_mul(glob_dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            m_scalar_mul(glob_dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            m_scalar_mul(glob_dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
-
-            m_scalar_mul(glob_db1, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(glob_db2, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(glob_db3, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(glob_db4, learning_rate/batch_size_f, 1, output_layer_size);
-            
-            m_sub(w1, glob_dw1, input_layer_size , hidden_layer_size);
-            m_sub(w2, glob_dw2, hidden_layer_size, hidden_layer_size);
-            m_sub(w3, glob_dw3, hidden_layer_size, hidden_layer_size);
-            m_sub(w4, glob_dw4, hidden_layer_size, output_layer_size);
-
-            m_sub(b1, glob_db1, 1, hidden_layer_size);
-            m_sub(b2, glob_db2, 1, hidden_layer_size);
-            m_sub(b3, glob_db3, 1, hidden_layer_size);
-            m_sub(b4, glob_db4, 1, output_layer_size);
-            }
-        }
-
+        // Sync weights and biases
         MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
         MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
         MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
@@ -245,13 +179,98 @@ void training_loop(
         MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
         MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
         MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+
+        #pragma omp parallel num_threads(threads)
+        {
         
+        #pragma omp for
+        for (int i = 0; i < my_batch_size; ++i)
+        {
+            m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
+            m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
+        }
+
+        // Forward pass
+        
+        forward_pass(weights, biases, b_input, z_values, a_values, dims);
+        
+        m_copy(z4, y_pred, my_batch_size, output_layer_size);
+
+        // Backward pass
+        m_transpose(w1, w1_T, input_layer_size, hidden_layer_size);
+        m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
+        m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
+        m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
+        m_transpose(my_batch_x, my_batch_x_T, input_layer_size, my_batch_size);
+
+        m_transpose(a1, a1_T, my_batch_size, hidden_layer_size);
+        m_transpose(a2, a2_T, my_batch_size, hidden_layer_size);
+        m_transpose(a3, a3_T, my_batch_size, hidden_layer_size);
+
+        m_index_to_one_hot(my_batch_y, y_targ, my_batch_size, output_layer_size);
+
+        backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
+        }
+
+        // Reduce gradients
+        if(my_rank == MASTER_RANK)
+        {
+            MPI_Reduce(MPI_IN_PLACE, dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+
+            MPI_Reduce(MPI_IN_PLACE, db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(MPI_IN_PLACE, db4, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+
+        }
+        else
+        { 
+            MPI_Reduce(dw1, NULL, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(dw2, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(dw3, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(dw4, NULL, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+
+            MPI_Reduce(db1, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(db2, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(db3, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+            MPI_Reduce(db4, NULL, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+        }
+
+        // Update weights and biases
+        if (my_rank == MASTER_RANK)
+        {
+            #pragma omp parallel num_threads(threads)
+            {
+            m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
+            m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+            m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+            m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
+
+            m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
+            m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
+            m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
+            m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
+            
+            m_sub(w1, dw1, input_layer_size , hidden_layer_size);
+            m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
+            m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
+            m_sub(w4, dw4, hidden_layer_size, output_layer_size);
+
+            m_sub(b1, db1, 1, hidden_layer_size);
+            m_sub(b2, db2, 1, hidden_layer_size);
+            m_sub(b3, db3, 1, hidden_layer_size);
+            m_sub(b4, db4, 1, output_layer_size);
+            }
+        }
 
         if ((epoch + 1) % 10 == 0 && my_rank == MASTER_RANK)
         {
-            m_argmax(y_hat, y_class, my_batch_size, output_layer_size, 1);
+            m_argmax(y_pred, y_class, my_batch_size, output_layer_size, 1);
             float acc = accuracy(y_class, my_batch_y, my_batch_size);
-            float loss = cross_entropy_loss(y_hat, my_batch_y, my_batch_size, output_layer_size);
+            float loss = cross_entropy_loss(y_pred, my_batch_y, my_batch_size, output_layer_size);
             std::cout << "Epoch: " << epoch+1 << "---" << "Loss: " << loss << " Accuracy: " << acc << std::endl;
         }
     }
@@ -269,18 +288,6 @@ void training_loop(
     else
     {
         MPI_Reduce(&duration, NULL, 1, MPI_DOUBLE, MPI_MAX, MASTER_RANK, MPI_COMM_WORLD);
-    }
-
-    if (my_rank == MASTER_RANK)
-    {
-        delete[] glob_dw1;
-        delete[] glob_dw2;
-        delete[] glob_dw3;
-        delete[] glob_dw4;
-        delete[] glob_db1;
-        delete[] glob_db2;
-        delete[] glob_db3;
-        delete[] glob_db4;
     }
 
     // Freeing memory
@@ -308,6 +315,15 @@ void training_loop(
     delete[] z2;
     delete[] z3;
     delete[] z4;
+    delete[] a1;
+    delete[] a2;
+    delete[] a3;
+    delete[] a1_T;
+    delete[] a2_T;
+    delete[] a3_T;
+    delete[] delta1;
+    delete[] delta2;
+    delete[] delta3;
     delete[] my_batch_x;
     delete[] my_batch_x_T;
     delete[] my_batch_y;
