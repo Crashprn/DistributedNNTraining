@@ -85,6 +85,7 @@ void training_loop(
     float* my_batch_y = new float[my_batch_size * train_y_cols]; // batch_size x 1
     int* my_batch_indices = new int[my_batch_size];
 
+    // Creating random devices for sampling
     std::random_device rd;
     std::mt19937 normal(43);
     std::mt19937 unif(43);
@@ -92,8 +93,6 @@ void training_loop(
     if (my_rank == MASTER_RANK)
     {
         // Initializing weights and biases
-        
-
         std::cout << "Initializing weights..." << std::endl;
         m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
         m_he_weight_init(w2, hidden_layer_size, hidden_layer_size, normal);
@@ -130,8 +129,6 @@ void training_loop(
             displs[i] = i * count_per_process[0];
         }
     }
-
-    
 
     // Defining forward inputs
     std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);

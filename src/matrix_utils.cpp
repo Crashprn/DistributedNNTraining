@@ -188,7 +188,6 @@ void m_mul(const float* input1, const float* input2, float* output, int rows1, i
     }
 }
 
-
 void m_scalar_mul(float* input, float scalar, int rows, int cols)
 {
     // Scalar multiplication has no ordering so one just simply needs to loop through the elements and multiply them.
