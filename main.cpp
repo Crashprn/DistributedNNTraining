@@ -48,6 +48,7 @@ int main()
     m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
     std::cout << "Successfully normalized data." << std::endl;
 
+    // Setting hyperparameters
     int input_layer_size = mnist_cols;
     int hidden_layer_size = 300;
     int output_layer_size = 10;
@@ -55,6 +56,7 @@ int main()
     float learning_rate = 0.01f;
     int batch_size = 50;
 
+    // Run Training Loop
     training_loop(
         mnist_train_x,
         mnist_train_y,

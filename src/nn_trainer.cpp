@@ -63,6 +63,21 @@ void training_loop(
     std::mt19937 normal(rd());
     std::mt19937 unif(rd());
 
+    // Forward pass tuples
+    std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
+    std::tuple<float*, float*, float*, float*> biases = std::make_tuple(b1, b2, b3, b4);
+    std::tuple<float*, int, int> b_input = std::make_tuple(batch_x, batch_size, input_layer_size);
+    std::tuple<float*, float*, float*, float*> z_values = std::make_tuple(z1, z2, z3, z4); 
+    std::tuple<int, int, int, int> dims = std::make_tuple(hidden_layer_size, hidden_layer_size, hidden_layer_size, output_layer_size);
+
+    // Backward pass tuples
+    std::tuple<float*, float*, float*> weights_T = std::make_tuple(w2_T, w3_T, w4_T);
+    std::tuple<float*, float*, float*, float*> weight_grads = std::make_tuple(dw1, dw2, dw3, dw4);
+    std::tuple<float*, float*, float*, float*> bias_grads = std::make_tuple(db1, db2, db3, db4);
+    std::tuple<float*, int, int> b_input_T = std::make_tuple(batch_x_T, input_layer_size, batch_size);
+    std::tuple<float*, int, int> target = std::make_tuple(batch_y, batch_size, output_layer_size);
+
+
     std::cout << "Initializing weights..." << std::endl;
     m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
     m_he_weight_init(w2, hidden_layer_size, hidden_layer_size, normal);
@@ -82,6 +97,7 @@ void training_loop(
     for (int epoch = 0; epoch < epochs; ++epoch)
     {
 
+        // Randomly select a batch of data and copy it to batch_x and batch_y
         for (int i = 0; i < batch_size; ++i)
         {
             int index = random_index(train_rows, unif);
@@ -90,13 +106,9 @@ void training_loop(
         }
 
         // Forward pass
-        std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
-        std::tuple<float*, float*, float*, float*> biases = std::make_tuple(b1, b2, b3, b4);
-        std::tuple<float*, int, int> b_input = std::make_tuple(batch_x, batch_size, input_layer_size);
-        std::tuple<float*, float*, float*, float*> z_values = std::make_tuple(z1, z2, z3, z4); 
-        std::tuple<int, int, int, int> dims = std::make_tuple(hidden_layer_size, hidden_layer_size, hidden_layer_size, output_layer_size);
-
         forward_pass(weights, biases, b_input, z_values, dims);
+
+        // Copy output to y_hat for loss calculation
         m_copy(z4, y_hat, batch_size, output_layer_size);
 
         // Backward pass
@@ -104,15 +116,9 @@ void training_loop(
         m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
         m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
         m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
-
         m_transpose(batch_x, batch_x_T, input_layer_size, batch_size);
 
-        std::tuple<float*, float*, float*> weights_T = std::make_tuple(w2_T, w3_T, w4_T);
-        std::tuple<float*, float*, float*, float*> weight_grads = std::make_tuple(dw1, dw2, dw3, dw4);
-        std::tuple<float*, float*, float*, float*> bias_grads = std::make_tuple(db1, db2, db3, db4);
-        std::tuple<float*, int, int> b_input_T = std::make_tuple(batch_x_T, input_layer_size, batch_size);
-        std::tuple<float*, int, int> target = std::make_tuple(batch_y, batch_size, output_layer_size);
-
+        
         backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, dims);
 
         // Update weights and biases then assign to copy
@@ -135,7 +141,8 @@ void training_loop(
         m_sub(b2, db2, 1, hidden_layer_size);
         m_sub(b3, db3, 1, hidden_layer_size);
         m_sub(b4, db4, 1, output_layer_size);
-
+        
+        // Report loss and accuracy every 10 epochs
         if (epoch % 10 == 0)
         {
             m_argmax(y_hat, y_class, batch_size, output_layer_size, 1);
