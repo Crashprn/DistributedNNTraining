@@ -6,6 +6,8 @@
 #include <limits>
 #include <omp.h>
 
+namespace cpu_matrix
+{
 /*
 Copy the contents of the source matrix to the destination matrix.
 The source and destination matrices must have the same dimensions.
@@ -132,4 +134,8 @@ IN:
 */
 void m_hadamard(float* input1, const float* input2, int rows, int cols);
 
-
+void m_Relu(float* input, int rows, int cols);
+void m_Relu_deriv(float* input, int rows, int cols);
+void m_index_to_one_hot(float* input, float* output, int rows, int cols);
+void m_softmax(float* input, int rows, int cols);
+}

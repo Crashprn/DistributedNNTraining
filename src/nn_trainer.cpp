@@ -11,7 +11,6 @@ void training_loop(
     int epochs,
     int glob_batch_size,
     float learning_rate,
-    int threads,
     int my_rank,
     int comm_size,
     int MASTER_RANK
@@ -177,34 +176,33 @@ void training_loop(
         MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
         MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
 
-        #pragma omp parallel num_threads(threads)
-        {
         
+        #pragma omp parallel
+        {
+
         #pragma omp for
         for (int i = 0; i < my_batch_size; ++i)
         {
-            m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
-            m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
+            cpu_matrix::m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
+            cpu_matrix::m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
         }
 
         // Forward pass
-        
         forward_pass(weights, biases, b_input, z_values, a_values, dims);
         
-        m_copy(z4, y_pred, my_batch_size, output_layer_size);
+        cpu_matrix::m_copy(z4, y_pred, my_batch_size, output_layer_size);
 
         // Backward pass
-        m_transpose(w1, w1_T, input_layer_size, hidden_layer_size);
-        m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
-        m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
-        m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
-        m_transpose(my_batch_x, my_batch_x_T, input_layer_size, my_batch_size);
+        cpu_matrix::m_transpose(w1, w1_T, input_layer_size, hidden_layer_size);
+        cpu_matrix::m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
+        cpu_matrix::m_transpose(my_batch_x, my_batch_x_T, input_layer_size, my_batch_size);
+        cpu_matrix::m_transpose(a1, a1_T, my_batch_size, hidden_layer_size);
+        cpu_matrix::m_transpose(a2, a2_T, my_batch_size, hidden_layer_size);
+        cpu_matrix::m_transpose(a3, a3_T, my_batch_size, hidden_layer_size);
 
-        m_transpose(a1, a1_T, my_batch_size, hidden_layer_size);
-        m_transpose(a2, a2_T, my_batch_size, hidden_layer_size);
-        m_transpose(a3, a3_T, my_batch_size, hidden_layer_size);
-
-        m_index_to_one_hot(my_batch_y, y_targ, my_batch_size, output_layer_size);
+        cpu_matrix::m_index_to_one_hot(my_batch_y, y_targ, my_batch_size, output_layer_size);
 
         backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
         }
@@ -239,33 +237,33 @@ void training_loop(
         // Update weights and biases
         if (my_rank == MASTER_RANK)
         {
-            #pragma omp parallel num_threads(threads)
+            #pragma omp parallel
             {
-            m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
-            m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
+            cpu_matrix::m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
 
-            m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
-            m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
-            
-            m_sub(w1, dw1, input_layer_size , hidden_layer_size);
-            m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
-            m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
-            m_sub(w4, dw4, hidden_layer_size, output_layer_size);
+            cpu_matrix::m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
+            cpu_matrix::m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
 
-            m_sub(b1, db1, 1, hidden_layer_size);
-            m_sub(b2, db2, 1, hidden_layer_size);
-            m_sub(b3, db3, 1, hidden_layer_size);
-            m_sub(b4, db4, 1, output_layer_size);
+            cpu_matrix::m_sub(w1, dw1, input_layer_size , hidden_layer_size);
+            cpu_matrix::m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
+            cpu_matrix::m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
+            cpu_matrix::m_sub(w4, dw4, hidden_layer_size, output_layer_size);
+
+            cpu_matrix::m_sub(b1, db1, 1, hidden_layer_size);
+            cpu_matrix::m_sub(b2, db2, 1, hidden_layer_size);
+            cpu_matrix::m_sub(b3, db3, 1, hidden_layer_size);
+            cpu_matrix::m_sub(b4, db4, 1, output_layer_size);
             }
         }
 
         if ((epoch + 1) % 10 == 0 && my_rank == MASTER_RANK)
         {
-            m_argmax(y_pred, y_class, my_batch_size, output_layer_size, 1);
+            cpu_matrix::m_argmax(y_pred, y_class, my_batch_size, output_layer_size, 1);
             float acc = accuracy(y_class, my_batch_y, my_batch_size);
             float loss = cross_entropy_loss(y_pred, my_batch_y, my_batch_size, output_layer_size);
             std::cout << "Epoch: " << epoch+1 << "---" << "Loss: " << loss << " Accuracy: " << acc << std::endl;

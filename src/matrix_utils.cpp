@@ -1,5 +1,7 @@
 #include "matrix_utils.hpp"
 
+namespace cpu_matrix
+{
 void m_copy(const float* src, float* dest, int rows, int cols)
 {
     #pragma omp for
@@ -110,7 +112,8 @@ void m_argmax(const float* input, int* output, int rows, int cols, int axis)
 void m_add(float* input1, const float* input2, int rows, int cols)
 {   
     // Addition has no ordering so one just simply needs to loop through the elements and add them.
-    #pragma omp for
+
+    #pragma omp for 
     for (int i = 0; i < rows * cols; ++i)
     {
         input1[i] = input1[i] + input2[i]; 
@@ -221,4 +224,73 @@ void m_hadamard(float* input1, const float* input2, int rows, int cols)
     }
 }
 
+void m_index_to_one_hot(float* input, float* output, int rows, int cols)
+{
+    #pragma omp for
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
+            int entry = static_cast<int>(input[i]);
+            if (entry == j)
+            {
+                output[i * cols + j] = 1.0;
+            }
+            else
+            {
+                output[i * cols + j] = 0.0;
+            }
+        }
+    }
+}
 
+void m_softmax(float* input, int rows, int cols)
+{   
+    #pragma omp for
+    for (int row = 0; row < rows; ++row)
+    {
+        // Loop through the input array and calculate the exponential of each element
+        float sum = 0.0;
+        for (int col = 0; col < cols; ++col)
+        {
+            input[row*cols + col] = exp(input[row*cols + col]);
+            sum += input[row*cols + col];
+        }
+        // Loop through the input array again and divide each element by the sum
+        for (int col = 0; col < cols; ++col)
+        {
+            input[row*cols + col] /= sum;
+        }
+    }
+}
+
+
+void m_Relu(float* input, int rows, int cols)
+{
+    #pragma omp for
+    for (int i = 0; i < rows * cols; ++i)
+    {
+        if (input[i] < 0.0)
+        {
+            input[i] = 0.1f * input[i];
+        }
+    }
+}
+
+void m_Relu_deriv(float* input, int rows, int cols)
+{
+    #pragma omp for
+    for (int i = 0; i < rows * cols; ++i)
+    {
+        if (input[i] < 0.0)
+        {
+            input[i] = 0.1f;
+        }
+        else
+        {
+            input[i] = 1.0f;
+        }
+    }
+}
+
+}

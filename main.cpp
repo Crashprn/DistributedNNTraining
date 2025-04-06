@@ -53,6 +53,8 @@ int main(int argc, char* argv[])
     }
     }
 
+    omp_set_num_threads(threads);
+
     MPI_Bcast(&threads, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&num_epochs, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&batch_size, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
@@ -81,7 +83,7 @@ int main(int argc, char* argv[])
         std::cout << "Successfully read data from files." << std::endl;
     }
 
-    m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
+    cpu_matrix::m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
 
     int input_layer_size = mnist_cols;
     int hidden_layer_size = 300;
@@ -99,7 +101,6 @@ int main(int argc, char* argv[])
         num_epochs,
         batch_size,
         learning_rate,
-        threads,
         my_rank,
         comm_size,
         MASTER_RANK

@@ -6,16 +6,12 @@
 #include <math.h>
 #include <omp.h>
 
-void m_index_to_one_hot(float* input, float* output, int rows, int cols);
-void m_softmax(float* input, int rows, int cols);
-void v_softmax(float* input, int n);
+
 float cross_entropy_loss(float* y_hat, float* y, int rows, int cols);
 float accuracy(const int* y_hat, const float* y, int rows);
 void m_he_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &gen);
 void m_xavier_weight_init(float* weight_mat, int rows, int cols, std::mt19937 &gen);
 void m_constant_weight_init(float* weight_mat, int rows, int cols, float value);
-void m_Relu(float* input, int rows, int cols);
-void m_Relu_deriv(float* input, int rows, int cols);
 
 void forward_pass(
     std::tuple<float*, float*, float*, float*> &weights, 

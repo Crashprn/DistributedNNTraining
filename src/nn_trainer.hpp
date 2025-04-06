@@ -20,7 +20,6 @@ void training_loop(
     int epochs,
     int batch_size,
     float learning_rate,
-    int threads,
     int my_rank,
     int comm_size,
     int MASTER_RANK
