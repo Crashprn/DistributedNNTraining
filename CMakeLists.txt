@@ -1,5 +1,4 @@
 cmake_minimum_required(VERSION 3.19)
-set(CMAKE_CUDA_ARCHITECTURES 60 70 80 86) # Adjust as needed
 set(PROJECT_NAME NNTraining)
 set(UNIT_TEST_RUNNER UnitTestRunner)
 
@@ -55,8 +54,6 @@ else()
 endif()
 
 include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
-set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}) # Adjust as needed
-set_property(TARGET ${UNIT_TEST_RUNNER} PROPERTY CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}) # Adjust as needed
 
 include(FetchContent)
 FetchContent_Declare(
