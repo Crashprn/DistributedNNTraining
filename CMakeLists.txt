@@ -31,7 +31,7 @@ add_library(kernels
     "${PROJECT_SOURCE_DIR}/src/c_matrix_utils.cuh"
 )
 
-target_compile_features(kernels PUBLIC cxx_std_11)
+target_compile_features(kernels PUBLIC cxx_std_20)
 set_target_properties(kernels
     PROPERTIES CUDA_SEPARABLE_COMPILATION ON
 )
