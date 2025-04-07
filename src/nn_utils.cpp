@@ -159,23 +159,6 @@ void forward_pass_gpu(
     int h3 = std::get<2>(dims);
     int out_dim = std::get<3>(dims);
 
-    // Checking for NaNs in Weights and Biases
-    
-    if (cuda_matrix::m_check_nan_inf(d_w1, input_feats, h1) || 
-        cuda_matrix::m_check_nan_inf(d_w2, h1, h2) ||
-        cuda_matrix::m_check_nan_inf(d_w3, h2, h3) ||
-        cuda_matrix::m_check_nan_inf(d_w4, h3, out_dim) ||
-        cuda_matrix::m_check_nan_inf(d_b1, h1, 1) ||
-        cuda_matrix::m_check_nan_inf(d_b2, h2, 1) ||
-        cuda_matrix::m_check_nan_inf(d_b3, h3, 1) ||
-        cuda_matrix::m_check_nan_inf(d_b4, out_dim, 1))
-    {
-        std::cerr << "NaN detected in weights or biases during forward pass!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
-
-
-
     // Layer 1
     cuda_matrix::m_mul(d_x, d_w1, d_z1, batch_size, input_feats, input_feats, h1); // (batch_size, input_cols) * (input_cols, h1) -> (batch_size, h1) 
     cuda_matrix::m_add_v(d_z1, d_b1, batch_size, h1, 1, h1); // (batch_size, h1) + (,h1) -> (batch_size, h1)
@@ -201,18 +184,6 @@ void forward_pass_gpu(
     cuda_matrix::m_mul(d_a3, d_w4, d_z4, batch_size, h3, h3, out_dim); // (batch_size, h3) * (h3, out_dim) -> (batch_size, out_dim)
     cuda_matrix::m_add_v(d_z4, d_b4, batch_size, out_dim, 1, out_dim); // (batch_size, out_dim) + (,out_dim) -> (batch_size, out_dim)
     cuda_matrix::m_softmax(d_z4, batch_size, out_dim); // (batch_size, out_dim) -> (batch_size, out_dim)
-
-    float* z4 = new float[batch_size * out_dim];
-    cuda_matrix::to<float>(z4, d_z4, batch_size, out_dim, "cpu"); // Copying back to d_z4 for further checks
-    //print_matrix(d_z4, batch_size, out_dim); // Print to check if softmax worked correctly
-
-    delete[] z4; // Free the temporary z4 array
-
-    if (cuda_matrix::m_check_nan_inf(d_z4, batch_size, out_dim))
-    {
-        std::cerr << "NaN detected in d_z4 during forward pass!" << std::endl;
-        exit(EXIT_FAILURE);
-    }
 }
 
 void backward_pass(

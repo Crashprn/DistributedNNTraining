@@ -11,6 +11,8 @@
 
 int MASTER_RANK = 0;
 
+
+
 int count_non_zero(const float* matrix, int rows, int cols)
 {   
     int count = 0;
@@ -30,7 +32,7 @@ int main(int argc, char* argv[])
 
     int threads, num_epochs, batch_size;
     int my_rank, comm_size;
-    std::string device; // default device
+    int is_cpu;
 
     MPI_Init(NULL,NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
@@ -43,7 +45,7 @@ int main(int argc, char* argv[])
         threads = 2;
         num_epochs = 2;
         batch_size = 100;
-        device = "cpu"; // default device
+        is_cpu = 1;
     }
     else
     {
@@ -52,14 +54,28 @@ int main(int argc, char* argv[])
         threads = std::stoi(argv[1]);
         num_epochs = std::stoi(argv[2]);
         batch_size = std::stoi(argv[3]);
-        device = argv[4];
+        std::string device = argv[4];
+        if (device == "cpu" || device == "CPU")
+        {
+            is_cpu = 1;
+        }
+        else if (device == "gpu" || device == "GPU" || device == "cuda")
+        {
+            is_cpu = 0;
+        }
+        else
+        {
+            std::cerr << "Invalid device. Use 'cpu' or 'gpu'." << std::endl;
+            MPI_Abort(MPI_COMM_WORLD, 1);
+            return 1;
+        }
     }
     }
 
     MPI_Bcast(&threads, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&num_epochs, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&batch_size, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
-    MPI_Bcast(&device[0], static_cast<int>(device.size()) + 1, MPI_CHAR, MASTER_RANK, MPI_COMM_WORLD); // +1 for null terminator
+    MPI_Bcast(&is_cpu, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD); 
 
     omp_set_num_threads(threads);
     
@@ -94,7 +110,7 @@ int main(int argc, char* argv[])
     int output_layer_size = 10;
     float learning_rate = 0.005f;
 
-    if (device == "gpu" || device == "cuda")
+    if (!is_cpu)
     {
         std::cout << "Using GPU for training." << std::endl;
         training_loop_gpu(
