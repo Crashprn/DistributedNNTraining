@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.19)
 set(PROJECT_NAME NNTraining)
 set(UNIT_TEST_RUNNER UnitTestRunner)
+set(CMAKE_CUDA_ARCHITECTURES "native")
 
 project(${PROJECT_NAME} LANGUAGES CXX CUDA)
 
