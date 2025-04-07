@@ -11,16 +11,30 @@ set (SOURCE_FILES
     "${PROJECT_SOURCE_DIR}/src/data_utils.cpp"
     "${PROJECT_SOURCE_DIR}/src/nn_trainer.cpp"
     "${PROJECT_SOURCE_DIR}/src/matrix_utils.cpp"
-    "${PROJECT_SOURCE_DIR}/src/c_matrix_utils.cu"
     )
 set (HEADER_FILES
     "${PROJECT_SOURCE_DIR}/src/nn_utils.hpp"
     "${PROJECT_SOURCE_DIR}/src/data_utils.hpp"
     "${PROJECT_SOURCE_DIR}/src/nn_trainer.hpp"
     "${PROJECT_SOURCE_DIR}/src/matrix_utils.hpp"
-    "${PROJECT_SOURCE_DIR}/src/c_matrix_utils.cuh"
-    )
+        )
 set (TEST_FILES "${PROJECT_SOURCE_DIR}/test.cpp")
+
+
+
+find_package(OpenMP REQUIRED)
+find_package(MPI REQUIRED)
+find_package(CUDAToolkit REQUIRED)
+
+add_library(kernels
+    "${PROJECT_SOURCE_DIR}/src/c_matrix_utils.cu"
+    "${PROJECT_SOURCE_DIR}/src/c_matrix_utils.cuh"
+)
+
+target_compile_features(kernels PUBLIC cxx_std_11)
+set_target_properties(kernels
+    PROPERTIES CUDA_SEPARABLE_COMPILATION ON
+)
 
 # Creating main and unit test runner executables
 add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES} main.cpp)
@@ -29,31 +43,13 @@ add_executable(${UNIT_TEST_RUNNER} ${HEADER_FILES} ${SOURCE_FILES} ${TEST_FILES}
 # Set the C++ standard for the main project and unit test runner
 set_property(TARGET ${PROJECT_NAME} PROPERTY
     CXX_STANDARD 20
-    CUDA_SEPARABLE_COMPILATION ON
     )
 set_property(TARGET ${UNIT_TEST_RUNNER} PROPERTY 
     CXX_STANDARD 20
-    CUDA_SEPARABLE_COMPILATION ON
     )
 
-find_package(OpenMP REQUIRED)
-if(OpenMP_CXX_FOUND)
-    message("OpenMP found")
-else()
-    message("OpenMP not found")
-endif()
-
-find_package(MPI REQUIRED)
-if(MPI_CXX_FOUND)
-    message("MPI found")
-else()
-    message("MPI not found")
-endif()
-
-find_package(CUDAToolkit REQUIRED)
-
-target_link_libraries(${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart)
-target_link_libraries(${UNIT_TEST_RUNNER} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart)
+target_link_libraries(${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart kernels)
+target_link_libraries(${UNIT_TEST_RUNNER} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart kernels)
 
 include(FetchContent)
 FetchContent_Declare(
