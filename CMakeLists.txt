@@ -3,7 +3,7 @@ set(PROJECT_NAME NNTraining)
 set(UNIT_TEST_RUNNER UnitTestRunner)
 set(CMAKE_CUDA_ARCHITECTURES "native")
 
-project(${PROJECT_NAME} LANGUAGES CXX CUDA)
+project(${PROJECT_NAME} LANGUAGES C CXX CUDA)
 
 # Setting Source and Header Files
 set (SOURCE_FILES 
