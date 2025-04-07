@@ -39,8 +39,6 @@ set_property(TARGET ${UNIT_TEST_RUNNER} PROPERTY
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
     message("OpenMP found")
-    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
-    target_link_libraries(${UNIT_TEST_RUNNER} PUBLIC OpenMP::OpenMP_CXX)
 else()
     message("OpenMP not found")
 endif()
@@ -48,13 +46,14 @@ endif()
 find_package(MPI REQUIRED)
 if(MPI_CXX_FOUND)
     message("MPI found")
-    target_link_libraries(${PROJECT_NAME} PUBLIC MPI::MPI_CXX)
-    target_link_libraries(${UNIT_TEST_RUNNER} PUBLIC MPI::MPI_CXX)
 else()
     message("MPI not found")
 endif()
 
-include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
+find_package(CUDAToolkit REQUIRED)
+
+target_link_libraries(${PROJECT_NAME} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart)
+target_link_libraries(${UNIT_TEST_RUNNER} PUBLIC MPI::MPI_CXX OpenMP::OpenMP_CXX CUDA::cudart)
 
 include(FetchContent)
 FetchContent_Declare(
