@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
+set(CMAKE_CUDA_ARCHITECTURES 60 70 80 86) # Adjust as needed
 set(PROJECT_NAME NNTraining)
 set(UNIT_TEST_RUNNER UnitTestRunner)
 
@@ -54,8 +55,8 @@ else()
 endif()
 
 include_directories("${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}")
-set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES 60 70 80 86) # Adjust as needed
-set_property(TARGET ${UNIT_TEST_RUNNER} PROPERTY CUDA_ARCHITECTURES 60 70 80 86) # Adjust as needed
+set_property(TARGET ${PROJECT_NAME} PROPERTY CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}) # Adjust as needed
+set_property(TARGET ${UNIT_TEST_RUNNER} PROPERTY CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}) # Adjust as needed
 
 include(FetchContent)
 FetchContent_Declare(
@@ -68,6 +69,5 @@ set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 target_link_libraries(${UNIT_TEST_RUNNER} PRIVATE gtest gtest_main)
-
 
 target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wconversion -O1)
