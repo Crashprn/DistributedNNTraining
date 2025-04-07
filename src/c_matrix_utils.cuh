@@ -2,6 +2,7 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <string>
+#include <iostream>
 
 namespace cuda_matrix
 {
@@ -52,6 +53,8 @@ namespace cuda_matrix
 
     }
 
+    void cuda_synchronize();
+    void set_block_size(int block_size_x, int block_size_y);
     void m_copy(const float* d_src, float* d_dest, int rows, int cols);
     void m_copy_row(const float* d_src, float* d_dest, int src_row, int dest_row, int rows1, int rows2, int cols);
     void m_sum(const float* d_input, float* d_output, int rows, int cols, int axis);
@@ -67,4 +70,5 @@ namespace cuda_matrix
     void m_Relu_deriv(float* input, int rows, int cols);
     void m_index_to_one_hot(float* input, float* output, int rows, int cols);
     void m_softmax(float* input, int rows, int cols);
+    bool m_check_nan_inf(const float* d_input, int rows, int cols);
 }

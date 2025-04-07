@@ -9,10 +9,11 @@
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
+    cuda_matrix::set_block_size(2, 2);
     return RUN_ALL_TESTS();
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Copy_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Copy)
 {
     float src[6] = {1, 2, 3, 4, 5, 6};
     float dest_v[6] = {0, 0, 0, 0, 0, 0};
@@ -28,7 +29,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Copy_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Copy_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Copy)
 {
     int num_threads = 2;
     float src[6] = {1, 2, 3, 4, 5, 6};
@@ -77,7 +78,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Copy)
 }
 
 
-TEST(Cpu_Matrix_Utils, Matrix_Row_Copy_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Row_Copy)
 {
     float src[9] = {
         1, 2, 3,
@@ -100,7 +101,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Row_Copy_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Row_Copy_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Row_Copy)
 {
     int num_threads = 2;
     float src[9] = {
@@ -162,7 +163,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Row_Copy)
 }
 
 
-TEST(Cpu_Matrix_Utils, Matrix_Sum_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Sum)
 {
     float src[9] = {
         1, 2, 3,
@@ -184,7 +185,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Sum_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Sum_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Sum)
 {
     int threads = 2;
     float src[9] = {
@@ -247,7 +248,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Sum)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Argmax_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Argmax)
 {
     float src[9] = {
         1, 2, 9,
@@ -269,7 +270,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Argmax_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Argmax_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Argmax)
 {
     float src[9] = {
         1, 2, 9,
@@ -330,7 +331,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Argmax)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Add_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Add)
 {
     float src1[9] = {
         1, 2, 3,
@@ -353,7 +354,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Add_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Add_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Add)
 {   
     int threads = 3;
     float src1[9] = {
@@ -409,7 +410,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Add)
 
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Add_Vector_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Add_Vector)
 {
     float src1[9] = {
         1, 2, 3,
@@ -447,7 +448,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Add_Vector_Single_Thread)
     
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Add_Vector_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Add_Vector)
 {
     float src1[9] = {
         1, 2, 3,
@@ -544,7 +545,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Add_Vector)
     
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Subtract_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Subtract)
 {
     float src1[9] = {
         1, 2, 3,
@@ -566,7 +567,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Subtract_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Subtract_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Subtract)
 {
     int threads = 2;
     float src1[9] = {
@@ -624,7 +625,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Subtract)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Multiply_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Multiply)
 {
     float src1[9] = {
         1, 2, 3,
@@ -647,7 +648,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Multiply_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Multiply_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Multiply)
 {
     int threads = 2;
     float src1[9] = {
@@ -702,16 +703,45 @@ TEST(Cuda_Matrix_Utils, Matrix_Multiply)
 
     for (int i = 0; i < mat_size; ++i)
     {
-        if (dest[i] != ans[i])
-        {
-            std::cout << "Mismatch at index " << i << ": dest[" << i << "] = " 
-                      << dest[i] << ", expected = " << ans[i] << std::endl;
-        }
         EXPECT_EQ(dest[i], ans[i]);
+    }
+
+    float src3[9] = {
+        1, 2, 3,
+        4, 5, 6,
+        7, 8, 9
+    };
+    float src4[9] = {
+        9, 8, 7,
+        6, 5, 4,
+        3, 2, 1
+    };
+    float dest2[9] = {0};
+    float ans2[9] = {30, 24, 18, 84, 69, 54, 138, 114, 90};
+
+    // Re-initialize src1 and src2 for the smaller test
+    float* d_src3 = cuda_matrix::device_alloc<float>(src3, 3, 3);
+    float* d_src4 = cuda_matrix::device_alloc<float>(src4, 3, 3);
+    float* d_dest2 = cuda_matrix::device_alloc<float>(dest2, 3, 3);
+
+    // Perform multiplication on device for the smaller matrix
+    cuda_matrix::m_mul(d_src3, d_src4, d_dest2, 3, 3, 3, 3);
+
+    // Copy back the results from device to host
+    cuda_matrix::to<float>(dest2, d_dest2, 3, 3, "cpu");
+
+    // Free device memory
+    cuda_matrix::device_free<float>(d_src3);
+    cuda_matrix::device_free<float>(d_src4);
+    cuda_matrix::device_free<float>(d_dest2);
+
+    for (int i = 0; i < 9; ++i)
+    {
+        EXPECT_EQ(dest2[i], ans2[i]);
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Scalar_Multiply_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Scalar_Multiply)
 {
     float src[9] = {
         1, 2, 3,
@@ -728,7 +758,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Scalar_Multiply_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Scalar_Multiply_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Scalar_Multiply)
 {
     float src[9] = {
         1, 2, 3,
@@ -773,25 +803,25 @@ TEST(Cuda_Matrix_Utils, Matrix_Scalar_Multiply)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Transpose_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Transpose)
 {
-    float src[9] = {
-        1, 2, 3,
-        4, 5, 6,
-        7, 8, 9
+    float src[12] = {
+        1, 2, 3, 4,
+        5, 6, 7, 8, 
+        9, 10, 11, 12
     };
-    float dest[9] = {0};
-    float ans[9] = {1, 4, 7, 2, 5, 8, 3, 6, 9};
+    float dest[12] = {0};
+    float ans[12] = {1, 5, 9, 2, 6, 10, 3, 7, 11, 4, 8, 12};
 
-    cpu_matrix::m_transpose(src, dest, 3, 3);
+    cpu_matrix::m_transpose(src, dest, 3, 4);
 
-    for (int i = 0; i < 9; ++i)
+    for (int i = 0; i < 12; ++i)
     {
         EXPECT_EQ(dest[i], ans[i]);
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Transpose_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Transpose)
 {
     int threads = 2;
     float src[9] = {
@@ -841,7 +871,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Transpose)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Hadamard_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Matrix_Hadamard)
 {
     float src1[9] = {
         1, 2, 3,
@@ -863,7 +893,7 @@ TEST(Cpu_Matrix_Utils, Matrix_Hadamard_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Matrix_Hadamard_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Matrix_Hadamard)
 {
     int threads = 2;
     float src1[9] = {
@@ -921,7 +951,7 @@ TEST(Cuda_Matrix_Utils, Matrix_Hadamard)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Index_To_One_Hot_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Index_To_One_Hot)
 {
     float src[3] = {0, 1, 2};
     float dest[9] = {0};
@@ -935,7 +965,7 @@ TEST(Cpu_Matrix_Utils, Index_To_One_Hot_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Index_To_One_Hot_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Index_To_One_Hot)
 {
     int threads = 2;
     float src[3] = {0, 1, 2};
@@ -978,7 +1008,7 @@ TEST(Cuda_Matrix_Utils, Index_To_One_Hot)
 }
 
 
-TEST(Cpu_Matrix_Utils, Softmax_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, Softmax)
 {
     float src[9] = {
         1, 2, 3,
@@ -999,7 +1029,7 @@ TEST(Cpu_Matrix_Utils, Softmax_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, Softmax_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, Softmax)
 {
     int threads = 2;
     float src[9] = {
@@ -1053,7 +1083,7 @@ TEST(Cuda_Matrix_Utils, Softmax)
     }
 }
 
-TEST(Cpu_Matrix_Utils, ReLU_Single_Thread)
+TEST(Cpu_Matrix_Utils_Single, ReLU)
 {
     float src[9] = {
         1, -2, 3,
@@ -1074,7 +1104,7 @@ TEST(Cpu_Matrix_Utils, ReLU_Single_Thread)
     }
 }
 
-TEST(Cpu_Matrix_Utils, ReLU_Multi_Thread)
+TEST(Cpu_Matrix_Utils_Multi, ReLU)
 {
     int threads = 2;
     float src[9] = {

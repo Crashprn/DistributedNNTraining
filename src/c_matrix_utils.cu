@@ -230,38 +230,34 @@ void m_mul_kernel(const float* d_input1, const float* d_input2, float* d_output,
     int tx = threadIdx.x, ty = threadIdx.y;
     int tile_size = blockDim.x;
 
+    
+    float sum = 0.0f;
+    for (int q = 0; q < ceil(1.0*cols1 / tile_size); q++)
+    {
+        // Load the M and N tiles into shared memory
+        int offset = q * tile_size;
+
+        int m_col = offset + tx; // Column index in M tile
+        int m_row = row; // Row index in M tile
+
+        int n_col = col; // Column index in N tile
+        int n_row = offset + ty; // Row index in N tile
+
+        m_tile[ty * tile_size + tx] = (m_col < cols1) ? d_input1[m_row * cols1 + m_col]: 0.0f; // Load M tile
+        n_tile[ty * tile_size + tx] = (n_row < rows2) ? d_input2[n_row * cols2 + n_col]: 0.0f; // Load N tile
+
+        __syncthreads(); // Ensure all threads have loaded their data
+        // Perform the multiplication and accumulate sum
+
+        for (int k = 0; k < tile_size; k++)
+        {
+            sum += m_tile[ty * tile_size + k] * n_tile[k * tile_size + tx];
+        }
+        __syncthreads(); // Ensure all threads have completed their calculations
+    }
+
     if (row < rows1 && col < cols2)
     {
-        float sum = 0.0f;
-        for (int q = 0; q < ceil(1.0*cols1 / tile_size); q++)
-        {
-            // Load the M and N tiles into shared memory
-            int offset = q * tile_size;
-
-            int m_col = offset + tx; // Column index in M tile
-            int m_row = row; // Row index in M tile
-
-            int n_col = col; // Column index in N tile
-            int n_row = offset + ty; // Row index in N tile
-            if (m_col < cols1 && n_row < rows2)
-            {
-                m_tile[ty * tile_size + tx] = d_input1[m_row * cols1 + m_col];
-                n_tile[ty * tile_size + tx] = d_input2[n_row * cols2 + n_col];
-            }
-            else
-            {
-                m_tile[ty * tile_size + tx] = 0.0f; // Out of bounds, set to 0
-                n_tile[ty * tile_size + tx] = 0.0f; // Out of bounds, set to 0
-            }
-            
-            __syncthreads(); // Ensure all threads have loaded their data
-            // Perform the multiplication and accumulate sum
-
-            for (int k = 0; k < tile_size; k++)
-            {
-                sum += m_tile[ty * tile_size + k] * n_tile[k * tile_size + tx];
-            }
-        }
         // Write the result to the output matrix
         d_output[row * cols2 + col] = sum;
     }
@@ -298,7 +294,7 @@ IN:
 __global__
 void m_transpose_kernel(float* d_input, float* d_output, int rows, int cols)
 {
-    extern __shared__ unsigned char tile[];
+    extern __shared__ float tile[];
     int tile_size = blockDim.x;
     
     // Calculate row and column indices
@@ -348,7 +344,7 @@ void m_hadamard_kernel(float* d_input1, const float* d_input2, int rows, int col
     int col = blockIdx.x * blockDim.x + threadIdx.x;
     if (row < rows && col < cols) {
         int idx = row * cols + col;
-        d_input1[idx] *= d_input2[idx];
+        d_input1[idx] = d_input1[idx] * d_input2[idx];
     }
 }
 
@@ -362,7 +358,8 @@ void m_Relu_kernel(float* d_input, int rows, int cols)
     if (row < rows && col < cols) {
         int idx = row * cols + col;
         // Apply ReLU: max(0, input)
-        if (d_input[idx] < 0) {
+        if (d_input[idx] < 0) 
+        {
             d_input[idx] = 0.1* d_input[idx]; // Leaky ReLU: 0.1 * input if input < 0
         }
     }
@@ -377,11 +374,8 @@ void m_Relu_deriv_kernel(float* d_input, int rows, int cols)
     if (row < rows && col < cols) {
         int idx = row * cols + col;
         // Apply derivative of ReLU: 1 if input > 0, else 0
-        if (d_input[idx] > 0) {
-            d_input[idx] = 1.0f; // Derivative is 1 for positive inputs
-        } else {
-            d_input[idx] = 0.1f; // Leaky ReLU derivative: 0.1 for negative inputs
-        }
+        if (d_input[idx] < 0.0) d_input[idx] = 0.1f; // Derivative is 0 for negative inputs
+        else d_input[idx] = 1.0f; // Derivative is 1 for positive inputs
     }
 }
 
@@ -393,7 +387,11 @@ void m_index_to_one_hot_kernel(float* input, float* output, int rows, int cols)
     if (row < rows)
     {
         int index = static_cast<int>(input[row]); // Get the index from the input
-        output[row * cols + index] = 1.0f; // Set the corresponding one-hot position to 1
+        for (int col = 0; col < cols; col++)
+        {
+            if (index == col) output[row * cols + col] = 1.0f; // Set the corresponding one-hot position to 1
+            else output[row * cols + col] = 0.0f; // Initialize the output to zero
+        }
     }
 
 }
@@ -409,12 +407,33 @@ void m_softmax_kernel(float* input, int rows, int cols)
         for (int col = 0; col < cols; col++)
         {
             sum += exp(input[row * cols + col]);
+            if (isnan(sum) || isinf(sum)) {
+                // Handle overflow or underflow
+                printf("Warning: Overflow/Underflow detected in softmax computation at row %d, col: %d, value: %f\n", row, col, input[row * cols + col]);
+                sum = 1.0f; // Set to 1 to avoid division by zero
+                break;
+            }
         }
 
         // Second pass: calculate softmax
         for (int col = 0; col < cols; col++)
         {
             input[row * cols + col] = exp(input[row * cols + col]) / sum;
+        }
+    }
+}
+
+__global__
+void check_nan_inf_kernel(const float* d_input, float* d_nan_inf, int rows, int cols)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < rows * cols)
+    {
+        float value = d_input[idx];
+        // Check for NaN or Inf
+        if (isnan(value) || isinf(value))
+        {
+            d_nan_inf[idx] = value; // Set flag to indicate NaN or Inf found
         }
     }
 }
@@ -426,6 +445,32 @@ namespace cuda_matrix
     int GRID_SIZE_X = 16;
     int GRID_SIZE_Y = 16;  
     
+    void cuda_error(cudaError_t err)
+    {
+        if (err != cudaSuccess)
+        {
+            fprintf(stderr, "CUDA Error: %s\n", cudaGetErrorString(err));
+            exit(EXIT_FAILURE);
+        }
+    }    
+
+    void cuda_synchronize()
+    {
+        // Synchronize the device to ensure all operations are complete
+        cuda_error(cudaDeviceSynchronize());
+    }
+
+    void set_block_size(int block_size_x, int block_size_y)
+    {
+        GRID_SIZE_X = block_size_x;
+        GRID_SIZE_Y = block_size_y;
+        // Ensure the block sizes are positive
+        if (GRID_SIZE_X <= 0 || GRID_SIZE_Y <= 0) {
+            fprintf(stderr, "Error: Block sizes must be positive integers.\n");
+            exit(EXIT_FAILURE);
+        }
+    }
+
     // Helper function to copy data on device
     void m_copy(const float* d_src, float* d_dest, int rows, int cols)
     {
@@ -437,6 +482,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_copy_kernel<<<gridDim, blockDim>>>(d_src, d_dest, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to copy a row from one matrix to another on device
@@ -450,6 +496,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_copy_row_kernel<<<gridDim, blockDim>>>(d_src, d_dest, src_row, dest_row, rows1, rows2, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to sum the elements of a matrix along a given axis
@@ -471,6 +518,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_sum_kernel<<<gridDim, blockDim>>>(d_input, d_output, rows, cols, axis);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to argmax the elements of a matrix along a given axis
@@ -491,6 +539,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_argmax_kernel<<<gridDim, blockDim>>>(d_input, d_output, rows, cols, axis);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to add two matrices element-wise
@@ -504,6 +553,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_add_kernel<<<gridDim, blockDim>>>(d_input1, d_input2, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to add a vector to a matrix element-wise with broadcasting
@@ -532,6 +582,7 @@ namespace cuda_matrix
             fprintf(stderr, "Error: Incompatible dimensions for broadcasting.\n");
             return;
         }
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to subtract two matrices element-wise
@@ -545,6 +596,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_sub_kernel<<<gridDim, blockDim>>>(d_input1, d_input2, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to multiply two matrices together
@@ -560,10 +612,12 @@ namespace cuda_matrix
         dim3 blockDim(GRID_SIZE_X, GRID_SIZE_Y);
         int grid_x = static_cast<unsigned int>(ceil(1.0 * cols2 / blockDim.x));
         int grid_y = static_cast<unsigned int>(ceil(1.0 * rows1 / blockDim.y)); // One block for each row
+
         dim3 gridDim(grid_x, grid_y); // Calculate grid size based on rows and cols
 
         // Launch the kernel
         m_mul_kernel<<<gridDim, blockDim, 2 * blockDim.x * blockDim.y * sizeof(float)>>>(d_input1, d_input2, d_output, rows1, cols1, rows2, cols2);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to multiply a matrix by a scalar
@@ -577,6 +631,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_scalar_mul_kernel<<<gridDim, blockDim>>>(d_input, d_scalar, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to transpose a matrix
@@ -589,7 +644,8 @@ namespace cuda_matrix
         dim3 gridDim(grid_x, grid_y); // Calculate grid size based on rows and cols
 
         // Launch the kernel
-        m_transpose_kernel<<<gridDim, blockDim, blockDim.x * blockDim.y * sizeof(unsigned char)>>>(d_input, d_output, rows, cols);
+        m_transpose_kernel<<<gridDim, blockDim, blockDim.x * blockDim.y * sizeof(float)>>>(d_input, d_output, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to perform Hadamard product of two matrices
@@ -603,6 +659,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_hadamard_kernel<<<gridDim, blockDim>>>(d_input1, d_input2, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to apply the ReLU activation function
@@ -616,6 +673,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_Relu_kernel<<<gridDim, blockDim>>>(d_input, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to apply the derivative ReLU activation function
@@ -629,6 +687,7 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_Relu_deriv_kernel<<<gridDim, blockDim>>>(input, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to convert index to one-hot encoding
@@ -641,8 +700,8 @@ namespace cuda_matrix
 
         dim3 gridDim(grid_x, grid_y); // Calculate grid size based on rows
 
-        // Launch the kernel
         m_index_to_one_hot_kernel<<<gridDim, blockDim>>>(input, output, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
 
     // Helper function to apply the softmax activation function
@@ -657,6 +716,42 @@ namespace cuda_matrix
 
         // Launch the kernel
         m_softmax_kernel<<<gridDim, blockDim>>>(input, rows, cols);
-
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
     }
+
+    bool m_check_nan_inf(const float* d_input, int rows, int cols)
+    {
+        // Check for NaN or Inf in the matrix
+        float* d_nan_inf;
+        cudaMalloc((void**)&d_nan_inf, rows*cols*sizeof(float));
+        cudaMemset(d_nan_inf, 0, rows*cols*sizeof(float));
+
+        // Kernel to check for NaN or Inf
+        // Note: This kernel should be implemented separately
+        // check_nan_inf_kernel<<<...>>>(d_input, d_nan_inf, rows, cols);
+        dim3 blockDim(GRID_SIZE_X*GRID_SIZE_Y);
+        int grid_x = static_cast<unsigned int>(ceil(1.0 * (rows * cols) / blockDim.x));
+        dim3 gridDim(grid_x, 1); // One block for each element
+
+        check_nan_inf_kernel<<<gridDim, blockDim>>>(d_input, d_nan_inf, rows, cols);
+        cuda_error(cudaGetLastError()); // Check for any errors during kernel launch
+
+        float* h_nan_inf = new float[rows * cols];
+
+        cuda_error(cudaMemcpy(h_nan_inf, d_nan_inf, rows*cols*sizeof(float), cudaMemcpyDeviceToHost));
+
+        for (int i = 0; i < rows * cols; i++)
+        {
+            if (h_nan_inf[i] != 0.0f)
+            {
+                fprintf(stderr, "Warning: Found NaN or Inf in the matrix at index %d, value: %f\n", i, h_nan_inf[i]);
+                return true; // If we found NaN or Inf, return true
+            } 
+        }
+
+        cudaFree(d_nan_inf);
+        delete[] h_nan_inf; // Free the host memory
+        return false; // No NaN or Inf found
+    }
+
 }

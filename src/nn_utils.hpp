@@ -1,7 +1,10 @@
 #pragma once
 
 #include "matrix_utils.hpp"
+#include "c_matrix_utils.cuh"
 #include "data_utils.hpp"
+
+
 #include <tuple>
 #include <math.h>
 #include <omp.h>
@@ -22,7 +25,28 @@ void forward_pass(
     std::tuple<int, int, int, int> &dims
 );
 
+void forward_pass_gpu(
+    std::tuple<float*, float*, float*, float*> &weights, 
+    std::tuple<float*, float*, float*, float*> &biases,
+    std::tuple<float*, int, int> input,
+    std::tuple<float*, float*, float*, float*> &z,
+    std::tuple<float*, float*, float*> &a,
+    std::tuple<int, int, int, int> &dims
+);
+
 void backward_pass(
+    std::tuple<float*, float*, float*> &weights_T, 
+    std::tuple<float*, float*, float*, float*> &weight_grads,
+    std::tuple<float*, float*, float*, float*> &bias_grads,
+    std::tuple<float*, int, int> input_T,
+    std::tuple<float*, int, int> target,
+    std::tuple<float*, float*, float*, float*> &z,
+    std::tuple<float*, float*, float*> &a_T,
+    std::tuple<float*, float*, float*> &deltas,
+    std::tuple<int, int, int, int> &dims
+);
+
+void backward_pass_gpu(
     std::tuple<float*, float*, float*> &weights_T, 
     std::tuple<float*, float*, float*, float*> &weight_grads,
     std::tuple<float*, float*, float*, float*> &bias_grads,

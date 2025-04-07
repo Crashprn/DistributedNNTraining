@@ -30,18 +30,20 @@ int main(int argc, char* argv[])
 
     int threads, num_epochs, batch_size;
     int my_rank, comm_size;
+    std::string device; // default device
 
     MPI_Init(NULL,NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
 
-    if (argc < 4)
+    if (argc < 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size> <device>" << std::endl;
         threads = 2;
         num_epochs = 2;
         batch_size = 100;
+        device = "cpu"; // default device
     }
     else
     {
@@ -50,17 +52,19 @@ int main(int argc, char* argv[])
         threads = std::stoi(argv[1]);
         num_epochs = std::stoi(argv[2]);
         batch_size = std::stoi(argv[3]);
+        device = argv[4];
     }
     }
-
-    omp_set_num_threads(threads);
 
     MPI_Bcast(&threads, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&num_epochs, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&batch_size, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(&device[0], static_cast<int>(device.size()) + 1, MPI_CHAR, MASTER_RANK, MPI_COMM_WORLD); // +1 for null terminator
+
+    omp_set_num_threads(threads);
     
     int mnist_cols = 28*28;
-    int mnist_rows = 3000;
+    int mnist_rows = 20000;
 
     float* mnist_train_x = new float[mnist_rows * mnist_cols];
     float* mnist_train_y = new float[mnist_rows * 1];
@@ -90,21 +94,44 @@ int main(int argc, char* argv[])
     int output_layer_size = 10;
     float learning_rate = 0.005f;
 
-    training_loop(
-        mnist_train_x,
-        mnist_train_y,
-        mnist_rows,
-        input_layer_size,
-        1,
-        output_layer_size,
-        hidden_layer_size,
-        num_epochs,
-        batch_size,
-        learning_rate,
-        my_rank,
-        comm_size,
-        MASTER_RANK
-    );
+    if (device == "gpu" || device == "cuda")
+    {
+        std::cout << "Using GPU for training." << std::endl;
+        training_loop_gpu(
+            mnist_train_x,
+            mnist_train_y,
+            mnist_rows,
+            input_layer_size,
+            1, // train_y_cols
+            output_layer_size,
+            hidden_layer_size,
+            num_epochs,
+            batch_size,
+            learning_rate,
+            my_rank,
+            comm_size,
+            MASTER_RANK
+        );
+    }
+    else
+    {
+        std::cout << "Using CPU for training." << std::endl;
+        training_loop_cpu(
+            mnist_train_x,
+            mnist_train_y,
+            mnist_rows,
+            input_layer_size,
+            1, // train_y_cols
+            output_layer_size,
+            hidden_layer_size,
+            num_epochs,
+            batch_size,
+            learning_rate,
+            my_rank,
+            comm_size,
+            MASTER_RANK
+        );
+    }
     
     MPI_Finalize();    
 

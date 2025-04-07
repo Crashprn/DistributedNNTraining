@@ -229,9 +229,9 @@ void m_index_to_one_hot(float* input, float* output, int rows, int cols)
     #pragma omp for
     for (int i = 0; i < rows; ++i)
     {
+        int entry = static_cast<int>(input[i]);
         for (int j = 0; j < cols; ++j)
         {
-            int entry = static_cast<int>(input[i]);
             if (entry == j)
             {
                 output[i * cols + j] = 1.0;
