@@ -9,7 +9,12 @@
 int main(int argc, char* argv[])
 {
     testing::InitGoogleTest(&argc, argv);
-    cuda_matrix::set_block_size(2, 2);
+    if (cuda_matrix::cuda_device_count() < 0)
+    {
+        std::cout << "No CUDA device found." << std::endl;
+        exit(1);
+    }
+    cuda_matrix::cuda_config(2, 2, 0);
     return RUN_ALL_TESTS();
 }
 

@@ -62,6 +62,13 @@ int main(int argc, char* argv[])
         else if (device == "gpu" || device == "GPU" || device == "cuda")
         {
             is_cpu = 0;
+            int device_count = cuda_matrix::cuda_device_count();
+            if (device_count < comm_size)
+            {
+                std::cerr << "Not enough GPU devices available. Exiting." << std::endl;
+                MPI_Abort(MPI_COMM_WORLD, 1);
+                return 1;
+            }
         }
         else
         {
@@ -113,6 +120,7 @@ int main(int argc, char* argv[])
     if (!is_cpu)
     {
         std::cout << "Using GPU for training." << std::endl;
+        cuda_matrix::cuda_config(32, 32, my_rank);
         training_loop_gpu(
             mnist_train_x,
             mnist_train_y,

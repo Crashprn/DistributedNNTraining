@@ -52,6 +52,8 @@ namespace cuda_matrix
 
     }
 
+    void cuda_config(int block_size_x, int block_size_y, int device_id);
+    int cuda_device_count();
     void cuda_synchronize();
     void set_block_size(int block_size_x, int block_size_y);
     void m_copy(const float* d_src, float* d_dest, int rows, int cols);

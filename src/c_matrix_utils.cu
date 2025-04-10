@@ -460,8 +460,20 @@ namespace cuda_matrix
         cuda_error(cudaDeviceSynchronize());
     }
 
-    void set_block_size(int block_size_x, int block_size_y)
+    int cuda_device_count()
     {
+        int device_count;
+        cuda_error(cudaGetDeviceCount(&device_count));
+        return device_count;
+    }
+
+    void cuda_config(int block_size_x, int block_size_y, int device_id)
+    {
+        // Set the device to the specified device ID
+        cudaSetDevice(device_id);
+        cuda_error(cudaGetLastError());
+
+        // Set the block sizes
         GRID_SIZE_X = block_size_x;
         GRID_SIZE_Y = block_size_y;
         // Ensure the block sizes are positive
