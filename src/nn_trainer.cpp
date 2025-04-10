@@ -109,6 +109,17 @@ void training_loop_cpu(
         std::cout << "Weights and biases initialized." << std::endl;
     }
 
+    // Sync weights and biases
+    MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w4, hidden_layer_size * output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+
+    MPI_Bcast(b1, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+
     // Creating batch indices for scattering
     int* batch_indices, *count_per_process, *displs;
 
@@ -165,17 +176,6 @@ void training_loop_cpu(
         // Scattering batch indices
         MPI_Scatterv(batch_indices, count_per_process, displs, MPI_INT, my_batch_indices, my_batch_size, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
-        // Sync weights and biases
-        MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w4, hidden_layer_size * output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-
-        MPI_Bcast(b1, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-
         #pragma omp parallel
         { 
 
@@ -207,58 +207,41 @@ void training_loop_cpu(
         }
 
         // Reduce gradients
-        if(my_rank == MASTER_RANK)
-        {
-            MPI_Reduce(MPI_IN_PLACE, dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 
-            MPI_Reduce(MPI_IN_PLACE, db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db4, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-        }
-        else
-        { 
-            MPI_Reduce(dw1, NULL, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw2, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw3, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw4, NULL, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-            MPI_Reduce(db1, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db2, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db3, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db4, NULL, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        }
+        MPI_Allreduce(MPI_IN_PLACE, db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db4, output_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 
         // Update weights and biases
-        if (my_rank == MASTER_RANK)
+        
+        #pragma omp parallel
         {
-            #pragma omp parallel
-            {
-            cpu_matrix::m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
+        cpu_matrix::m_scalar_mul(dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
 
-            cpu_matrix::m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cpu_matrix::m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
+        cpu_matrix::m_scalar_mul(db1, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(db2, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(db3, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cpu_matrix::m_scalar_mul(db4, learning_rate/batch_size_f, 1, output_layer_size);
 
-            cpu_matrix::m_sub(w1, dw1, input_layer_size , hidden_layer_size);
-            cpu_matrix::m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
-            cpu_matrix::m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
-            cpu_matrix::m_sub(w4, dw4, hidden_layer_size, output_layer_size);
+        cpu_matrix::m_sub(w1, dw1, input_layer_size , hidden_layer_size);
+        cpu_matrix::m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
+        cpu_matrix::m_sub(w4, dw4, hidden_layer_size, output_layer_size);
 
-            cpu_matrix::m_sub(b1, db1, 1, hidden_layer_size);
-            cpu_matrix::m_sub(b2, db2, 1, hidden_layer_size);
-            cpu_matrix::m_sub(b3, db3, 1, hidden_layer_size);
-            cpu_matrix::m_sub(b4, db4, 1, output_layer_size);
-            }
+        cpu_matrix::m_sub(b1, db1, 1, hidden_layer_size);
+        cpu_matrix::m_sub(b2, db2, 1, hidden_layer_size);
+        cpu_matrix::m_sub(b3, db3, 1, hidden_layer_size);
+        cpu_matrix::m_sub(b4, db4, 1, output_layer_size);
         }
+        
 
         if ((epoch + 1) % 10 == 0 && my_rank == MASTER_RANK)
         {
@@ -468,6 +451,17 @@ void training_loop_gpu(
         std::cout << "Weights and biases initialized." << std::endl;
     }
 
+    // Sync weights and biases
+    MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(w4, hidden_layer_size * output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+
+    MPI_Bcast(b1, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+    MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+
     // Creating batch indices for scattering
     int* batch_indices, *count_per_process, *displs;
 
@@ -504,6 +498,7 @@ void training_loop_gpu(
     std::tuple<float*, float*, float*> deltas = std::make_tuple(d_delta1, d_delta2, d_delta3);
     std::tuple<float*, int, int> b_input_T = std::make_tuple(d_my_batch_x_T, input_layer_size, my_batch_size);
     std::tuple<float*, int, int> target = std::make_tuple(d_y_targ, my_batch_size, output_layer_size);
+    
 
     if (my_rank == MASTER_RANK)
     {
@@ -524,16 +519,7 @@ void training_loop_gpu(
         // Scattering batch indices
         MPI_Scatterv(batch_indices, count_per_process, displs, MPI_INT, my_batch_indices, my_batch_size, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
-        // Sync weights and biases
-        MPI_Bcast(w1, input_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(w4, hidden_layer_size * output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-
-        MPI_Bcast(b1, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b2, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b3, hidden_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
-        MPI_Bcast(b4, output_layer_size, MPI_FLOAT, MASTER_RANK, MPI_COMM_WORLD);
+        
 
 
         // Copying weights and biases to device memory
@@ -591,78 +577,59 @@ void training_loop_gpu(
         cuda_matrix::cuda_synchronize();
 
         // Reduce gradients
-        if(my_rank == MASTER_RANK)
-        {
-            MPI_Reduce(MPI_IN_PLACE, dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw1, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw2, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw3, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, dw4, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 
-            MPI_Reduce(MPI_IN_PLACE, db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(MPI_IN_PLACE, db4, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-        }
-        else
-        { 
-            MPI_Reduce(dw1, NULL, input_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw2, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw3, NULL, hidden_layer_size * hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(dw4, NULL, hidden_layer_size * output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-
-            MPI_Reduce(db1, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db2, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db3, NULL, hidden_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-            MPI_Reduce(db4, NULL, output_layer_size, MPI_FLOAT, MPI_SUM, MASTER_RANK, MPI_COMM_WORLD);
-        }
+        MPI_Allreduce(MPI_IN_PLACE, db1, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db2, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db3, hidden_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, db4, output_layer_size, MPI_FLOAT, MPI_SUM, MPI_COMM_WORLD);
 
         // Update weights and biases
-        if (my_rank == MASTER_RANK)
-        {
-            // Copying gradients back to device memory for GPU update
-            cuda_matrix::to<float>(dw1, d_dw1, input_layer_size, hidden_layer_size, "gpu");
-            cuda_matrix::to<float>(dw2, d_dw2, hidden_layer_size, hidden_layer_size, "gpu");
-            cuda_matrix::to<float>(dw3, d_dw3, hidden_layer_size, hidden_layer_size, "gpu");
-            cuda_matrix::to<float>(dw4, d_dw4, hidden_layer_size, output_layer_size, "gpu");
-            cuda_matrix::to<float>(db1, d_db1, hidden_layer_size, 1, "gpu");
-            cuda_matrix::to<float>(db2, d_db2, hidden_layer_size, 1, "gpu");
-            cuda_matrix::to<float>(db3, d_db3, hidden_layer_size, 1, "gpu");
-            cuda_matrix::to<float>(db4, d_db4, output_layer_size, 1, "gpu");
+        // Copying gradients back to device memory for GPU update
+        cuda_matrix::to<float>(dw1, d_dw1, input_layer_size, hidden_layer_size, "gpu");
+        cuda_matrix::to<float>(dw2, d_dw2, hidden_layer_size, hidden_layer_size, "gpu");
+        cuda_matrix::to<float>(dw3, d_dw3, hidden_layer_size, hidden_layer_size, "gpu");
+        cuda_matrix::to<float>(dw4, d_dw4, hidden_layer_size, output_layer_size, "gpu");
+        cuda_matrix::to<float>(db1, d_db1, hidden_layer_size, 1, "gpu");
+        cuda_matrix::to<float>(db2, d_db2, hidden_layer_size, 1, "gpu");
+        cuda_matrix::to<float>(db3, d_db3, hidden_layer_size, 1, "gpu");
+        cuda_matrix::to<float>(db4, d_db4, output_layer_size, 1, "gpu");
 
-            // Multiplying gradients by learning rate and batch size
-            
-            cuda_matrix::m_scalar_mul(d_dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
-            cuda_matrix::m_scalar_mul(d_dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_db1, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_db2, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_db3, learning_rate/batch_size_f, 1, hidden_layer_size);
-            cuda_matrix::m_scalar_mul(d_db4, learning_rate/batch_size_f, 1, output_layer_size);
+        // Multiplying gradients by learning rate and batch size
+        
+        cuda_matrix::m_scalar_mul(d_dw4, learning_rate/batch_size_f, hidden_layer_size, output_layer_size);
+        cuda_matrix::m_scalar_mul(d_dw3, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_dw2, learning_rate/batch_size_f, hidden_layer_size, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_dw1, learning_rate/batch_size_f, input_layer_size, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_db1, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_db2, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_db3, learning_rate/batch_size_f, 1, hidden_layer_size);
+        cuda_matrix::m_scalar_mul(d_db4, learning_rate/batch_size_f, 1, output_layer_size);
 
-            cuda_matrix::m_sub(d_w1, d_dw1, input_layer_size , hidden_layer_size);
-            cuda_matrix::m_sub(d_w2, d_dw2, hidden_layer_size, hidden_layer_size);
-            cuda_matrix::m_sub(d_w3, d_dw3, hidden_layer_size, hidden_layer_size);
-            cuda_matrix::m_sub(d_w4, d_dw4, hidden_layer_size, output_layer_size);
-            cuda_matrix::m_sub(d_b1, d_db1, 1, hidden_layer_size);
-            cuda_matrix::m_sub(d_b2, d_db2, 1, hidden_layer_size);
-            cuda_matrix::m_sub(d_b3, d_db3, 1, hidden_layer_size);
-            cuda_matrix::m_sub(d_b4, d_db4, 1, output_layer_size);
+        cuda_matrix::m_sub(d_w1, d_dw1, input_layer_size , hidden_layer_size);
+        cuda_matrix::m_sub(d_w2, d_dw2, hidden_layer_size, hidden_layer_size);
+        cuda_matrix::m_sub(d_w3, d_dw3, hidden_layer_size, hidden_layer_size);
+        cuda_matrix::m_sub(d_w4, d_dw4, hidden_layer_size, output_layer_size);
+        cuda_matrix::m_sub(d_b1, d_db1, 1, hidden_layer_size);
+        cuda_matrix::m_sub(d_b2, d_db2, 1, hidden_layer_size);
+        cuda_matrix::m_sub(d_b3, d_db3, 1, hidden_layer_size);
+        cuda_matrix::m_sub(d_b4, d_db4, 1, output_layer_size);
 
-            // Copying updated weights and biases back to host memory
-            cuda_matrix::to<float>(w1, d_w1, input_layer_size, hidden_layer_size, "cpu");
-            cuda_matrix::to<float>(w2, d_w2, hidden_layer_size, hidden_layer_size, "cpu");
-            cuda_matrix::to<float>(w3, d_w3, hidden_layer_size, hidden_layer_size, "cpu");
-            cuda_matrix::to<float>(w4, d_w4, hidden_layer_size, output_layer_size, "cpu");
+        // Copying updated weights and biases back to host memory
+        cuda_matrix::to<float>(w1, d_w1, input_layer_size, hidden_layer_size, "cpu");
+        cuda_matrix::to<float>(w2, d_w2, hidden_layer_size, hidden_layer_size, "cpu");
+        cuda_matrix::to<float>(w3, d_w3, hidden_layer_size, hidden_layer_size, "cpu");
+        cuda_matrix::to<float>(w4, d_w4, hidden_layer_size, output_layer_size, "cpu");
 
-            cuda_matrix::to<float>(b1, d_b1, hidden_layer_size, 1, "cpu");
-            cuda_matrix::to<float>(b2, d_b2, hidden_layer_size, 1, "cpu");
-            cuda_matrix::to<float>(b3, d_b3, hidden_layer_size, 1, "cpu");
-            cuda_matrix::to<float>(b4, d_b4, output_layer_size, 1, "cpu");
+        cuda_matrix::to<float>(b1, d_b1, hidden_layer_size, 1, "cpu");
+        cuda_matrix::to<float>(b2, d_b2, hidden_layer_size, 1, "cpu");
+        cuda_matrix::to<float>(b3, d_b3, hidden_layer_size, 1, "cpu");
+        cuda_matrix::to<float>(b4, d_b4, output_layer_size, 1, "cpu");
 
-            cuda_matrix::cuda_synchronize(); // Ensure all updates are complete before next iteration
-        }
+        cuda_matrix::cuda_synchronize(); // Ensure all updates are complete before next iteration
 
         if ((epoch + 1) % 10 == 0 && my_rank == MASTER_RANK)
         {
