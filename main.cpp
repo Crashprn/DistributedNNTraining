@@ -119,8 +119,13 @@ int main(int argc, char* argv[])
 
     if (!is_cpu)
     {
-        std::cout << "Using GPU for training." << std::endl;
-        cuda_matrix::cuda_config(32, 32, my_rank);
+        if (my_rank == MASTER_RANK)
+        {
+            std::cout << "Using GPU for training." << std::endl;
+        }
+         // Initialize GPU
+        std::cout << "Rank: " << my_rank << " initializing GPU: " << my_rank << std::endl;
+        cuda_matrix::cuda_config(16, 16, my_rank);
         training_loop_gpu(
             mnist_train_x,
             mnist_train_y,
@@ -139,7 +144,10 @@ int main(int argc, char* argv[])
     }
     else
     {
+        if (my_rank == MASTER_RANK)
+        {
         std::cout << "Using CPU for training." << std::endl;
+        }
         training_loop_cpu(
             mnist_train_x,
             mnist_train_y,

@@ -359,7 +359,7 @@ void backward_pass_gpu(
 
     // grad w = 1/batch_size * sig(z_2)^T * d3
     cuda_matrix::m_mul(d_a2_T, d_delta3, d_dw3, h2, batch_size, batch_size, h3); // (h2, batch_size) * (batch_size, h3) -> (h2, h3)
-
+    
     // Layer 2 Gradients
     // Calculating delta2
     cuda_matrix::m_mul(d_delta3, d_w3_T, d_delta2, batch_size, h3, h3, h2); // (batch_size, h3) * (h3, h2) -> (batch_size, h2)

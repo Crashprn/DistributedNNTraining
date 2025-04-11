@@ -519,8 +519,6 @@ void training_loop_gpu(
         // Scattering batch indices
         MPI_Scatterv(batch_indices, count_per_process, displs, MPI_INT, my_batch_indices, my_batch_size, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
-        
-
 
         // Copying weights and biases to device memory
         cuda_matrix::to<float>(w1, d_w1, input_layer_size, hidden_layer_size, "gpu");
@@ -547,6 +545,7 @@ void training_loop_gpu(
 
         // Forward pass
         forward_pass_gpu(weights, biases, b_input, z_values, a_values, dims); 
+
         cuda_matrix::to<float>(y_pred, d_z4, my_batch_size, output_layer_size, "cpu");
 
 
@@ -562,7 +561,9 @@ void training_loop_gpu(
 
         cuda_matrix::m_index_to_one_hot(d_my_batch_y, d_y_targ, my_batch_size, output_layer_size);
 
+
         backward_pass_gpu(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
+
 
         cuda_matrix::to<float>(dw1, d_dw1, input_layer_size, hidden_layer_size, "cpu");
         cuda_matrix::to<float>(dw2, d_dw2, hidden_layer_size, hidden_layer_size, "cpu");
@@ -572,6 +573,7 @@ void training_loop_gpu(
         cuda_matrix::to<float>(db2, d_db2, 1, hidden_layer_size, "cpu");
         cuda_matrix::to<float>(db3, d_db3, 1, hidden_layer_size, "cpu");
         cuda_matrix::to<float>(db4, d_db4, 1, output_layer_size, "cpu");
+
 
         // Synchronize device to ensure all operations are complete before reducing gradients
         cuda_matrix::cuda_synchronize();
