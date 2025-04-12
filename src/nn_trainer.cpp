@@ -139,6 +139,12 @@ void training_loop_cpu(
             displs[i] = i * count_per_process[0];
         }
     }
+    else
+    {
+        batch_indices = NULL;
+        count_per_process = NULL;
+        displs = NULL;
+    }
 
     // Defining forward inputs
     std::tuple<float*, float*, float*, float*> weights = std::make_tuple(w1, w2, w3, w4);
@@ -196,7 +202,7 @@ void training_loop_cpu(
         cpu_matrix::m_transpose(w2, w2_T, hidden_layer_size, hidden_layer_size);
         cpu_matrix::m_transpose(w3, w3_T, hidden_layer_size, hidden_layer_size);
         cpu_matrix::m_transpose(w4, w4_T, hidden_layer_size, output_layer_size);
-        cpu_matrix::m_transpose(my_batch_x, my_batch_x_T, input_layer_size, my_batch_size);
+        cpu_matrix::m_transpose(my_batch_x, my_batch_x_T, my_batch_size, input_layer_size);
         cpu_matrix::m_transpose(a1, a1_T, my_batch_size, hidden_layer_size);
         cpu_matrix::m_transpose(a2, a2_T, my_batch_size, hidden_layer_size);
         cpu_matrix::m_transpose(a3, a3_T, my_batch_size, hidden_layer_size);
@@ -235,7 +241,7 @@ void training_loop_cpu(
         cpu_matrix::m_sub(w2, dw2, hidden_layer_size, hidden_layer_size);
         cpu_matrix::m_sub(w3, dw3, hidden_layer_size, hidden_layer_size);
         cpu_matrix::m_sub(w4, dw4, hidden_layer_size, output_layer_size);
-
+        
         cpu_matrix::m_sub(b1, db1, 1, hidden_layer_size);
         cpu_matrix::m_sub(b2, db2, 1, hidden_layer_size);
         cpu_matrix::m_sub(b3, db3, 1, hidden_layer_size);
@@ -481,6 +487,12 @@ void training_loop_gpu(
             displs[i] = i * count_per_process[0];
         }
     }
+    else
+    {
+        batch_indices = NULL;
+        count_per_process = NULL;
+        displs = NULL;
+    }
 
     // Defining forward inputs
     std::tuple<float*, float*, float*, float*> weights = std::make_tuple(d_w1, d_w2, d_w3, d_w4);
@@ -630,7 +642,6 @@ void training_loop_gpu(
         cuda_matrix::to<float>(b2, d_b2, hidden_layer_size, 1, "cpu");
         cuda_matrix::to<float>(b3, d_b3, hidden_layer_size, 1, "cpu");
         cuda_matrix::to<float>(b4, d_b4, output_layer_size, 1, "cpu");
-
         cuda_matrix::cuda_synchronize(); // Ensure all updates are complete before next iteration
 
         if ((epoch + 1) % 10 == 0 && my_rank == MASTER_RANK)
