@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
         }
          // Initialize GPU
         std::cout << "Rank: " << my_rank << " initializing GPU: " << my_rank << std::endl;
-        cuda_matrix::cuda_config(16, 16, my_rank);
+        cuda_matrix::cuda_config(32, 32, my_rank);
         training_loop_gpu(
             mnist_train_x,
             mnist_train_y,

@@ -243,8 +243,8 @@ void m_mul_kernel(const float* d_input1, const float* d_input2, float* d_output,
         int n_col = col; // Column index in N tile
         int n_row = offset + ty; // Row index in N tile
 
-        m_tile[ty * tile_size + tx] = (m_col < cols1) ? d_input1[m_row * cols1 + m_col]: 0.0f; // Load M tile
-        n_tile[ty * tile_size + tx] = (n_row < rows2) ? d_input2[n_row * cols2 + n_col]: 0.0f; // Load N tile
+        m_tile[ty * tile_size + tx] = (m_col < cols1 && m_row < rows1) ? d_input1[m_row * cols1 + m_col]: 0.0f; // Load M tile
+        n_tile[ty * tile_size + tx] = (n_row < rows2 && n_col < cols2) ? d_input2[n_row * cols2 + n_col]: 0.0f; // Load N tile
 
         __syncthreads(); // Ensure all threads have loaded their data
         // Perform the multiplication and accumulate sum
