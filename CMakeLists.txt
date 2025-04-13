@@ -20,8 +20,6 @@ set (HEADER_FILES
         )
 set (TEST_FILES "${PROJECT_SOURCE_DIR}/test.cpp")
 
-
-
 find_package(OpenMP REQUIRED)
 find_package(MPI REQUIRED)
 find_package(CUDAToolkit REQUIRED)

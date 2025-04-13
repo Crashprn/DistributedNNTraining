@@ -11,22 +11,6 @@
 
 int MASTER_RANK = 0;
 
-
-
-int count_non_zero(const float* matrix, int rows, int cols)
-{   
-    int count = 0;
-    for (int i = 0; i < rows*cols; ++i)
-    {
-        if (matrix[i] > 0.0f)
-        {
-            count++;
-        }
-    }
-    return count;
-}
-
-
 int main(int argc, char* argv[])
 {
 
@@ -42,13 +26,8 @@ int main(int argc, char* argv[])
     if (argc < 5)
     {
         std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size> <device>" << std::endl;
-        threads = 2;
-        num_epochs = 2;
-        batch_size = 100;
-        is_cpu = 1;
     }
-    else
-    {
+
     if (my_rank == MASTER_RANK)
     {
         threads = std::stoi(argv[1]);
@@ -77,7 +56,6 @@ int main(int argc, char* argv[])
             return 1;
         }
     }
-    }
 
     MPI_Bcast(&threads, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&num_epochs, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
@@ -94,6 +72,7 @@ int main(int argc, char* argv[])
 
     std::string mnist_train_x_file = "../data/mnist_x.csv";
     std::string mnist_train_y_file = "../data/mnist_y.csv";
+    std::string save_dir = "../model_saves/";
 
     try
     {
@@ -104,10 +83,6 @@ int main(int argc, char* argv[])
     {
         std::cerr << e.what() << std::endl;
         return 1;
-    }
-    if (my_rank == MASTER_RANK)
-    {
-        std::cout << "Successfully read data from files." << std::endl;
     }
 
     cpu_matrix::m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
@@ -139,7 +114,9 @@ int main(int argc, char* argv[])
             learning_rate,
             my_rank,
             comm_size,
-            MASTER_RANK
+            MASTER_RANK,
+            true,
+            save_dir
         );
     }
     else
@@ -161,7 +138,9 @@ int main(int argc, char* argv[])
             learning_rate,
             my_rank,
             comm_size,
-            MASTER_RANK
+            MASTER_RANK,
+            true,
+            save_dir
         );
     }
     

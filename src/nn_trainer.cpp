@@ -13,7 +13,9 @@ void training_loop_cpu(
     float learning_rate,
     int my_rank,
     int comm_size,
-    int MASTER_RANK
+    int MASTER_RANK,
+    bool save_model,
+    const std::string& save_dir
 )
 {
     int input_layer_size = train_x_cols;
@@ -92,13 +94,10 @@ void training_loop_cpu(
     if (my_rank == MASTER_RANK)
     {
         // Initializing weights and biases
-        std::cout << "Initializing weights..." << std::endl;
         m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
         m_he_weight_init(w2, hidden_layer_size, hidden_layer_size, normal);
         m_he_weight_init(w3, hidden_layer_size, hidden_layer_size, normal);
         m_he_weight_init(w4, hidden_layer_size, output_layer_size, normal);
-
-        std::cout << "Initializing biases..." << std::endl;
 
         //float bias_init = 0.1f;
         m_xavier_weight_init(b1, hidden_layer_size, 1, unif);
@@ -273,6 +272,19 @@ void training_loop_cpu(
         MPI_Reduce(&duration, NULL, 1, MPI_DOUBLE, MPI_MAX, MASTER_RANK, MPI_COMM_WORLD);
     }
 
+    if (save_model && my_rank == MASTER_RANK)
+    {
+        std::cout << "Saving model..." << std::endl;
+        write_matrix_to_file(save_dir + "w1_cpu.csv", w1, input_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w2_cpu.csv", w2, hidden_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w3_cpu.csv", w3, hidden_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w4_cpu.csv", w4, hidden_layer_size, output_layer_size);
+        write_matrix_to_file(save_dir + "b1_cpu.csv", b1, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b2_cpu.csv", b2, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b3_cpu.csv", b3, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b4_cpu.csv", b4, 1, output_layer_size);
+    }
+
     // Freeing memory
     delete[] w1;
     delete[] w2;
@@ -336,7 +348,9 @@ void training_loop_gpu(
     float learning_rate,
     int my_rank,
     int comm_size,
-    int MASTER_RANK
+    int MASTER_RANK,
+    bool save_model,
+    const std::string& save_dir
 )
 {
     int input_layer_size = train_x_cols;
@@ -440,13 +454,10 @@ void training_loop_gpu(
     if (my_rank == MASTER_RANK)
     {
         // Initializing weights and biases
-        std::cout << "Initializing weights..." << std::endl;
         m_he_weight_init(w1, input_layer_size, hidden_layer_size,  normal);
         m_he_weight_init(w2, hidden_layer_size, hidden_layer_size, normal);
         m_he_weight_init(w3, hidden_layer_size, hidden_layer_size, normal);
         m_he_weight_init(w4, hidden_layer_size, output_layer_size, normal);
-
-        std::cout << "Initializing biases..." << std::endl;
 
         //float bias_init = 0.1f;
         m_xavier_weight_init(b1, hidden_layer_size, 1, unif);
@@ -531,6 +542,14 @@ void training_loop_gpu(
         // Scattering batch indices
         MPI_Scatterv(batch_indices, count_per_process, displs, MPI_INT, my_batch_indices, my_batch_size, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
 
+        // Copying batch data to device memory
+        for (int i = 0; i < my_batch_size; ++i)
+        {
+            // Copying each row of the batch to device memory
+            cpu_matrix::m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
+            cpu_matrix::m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
+        }
+
 
         // Copying weights and biases to device memory
         cuda_matrix::to<float>(w1, d_w1, input_layer_size, hidden_layer_size, "gpu");
@@ -540,16 +559,7 @@ void training_loop_gpu(
         cuda_matrix::to<float>(b1, d_b1, hidden_layer_size, 1, "gpu");
         cuda_matrix::to<float>(b2, d_b2, hidden_layer_size, 1, "gpu");
         cuda_matrix::to<float>(b3, d_b3, hidden_layer_size, 1, "gpu");
-        cuda_matrix::to<float>(b4, d_b4, output_layer_size, 1, "gpu"); 
-
-
-        // Copying batch data to device memory
-        for (int i = 0; i < my_batch_size; ++i)
-        {
-            // Copying each row of the batch to device memory
-            cpu_matrix::m_copy_row(train_x, my_batch_x, my_batch_indices[i], i, train_rows, my_batch_size, input_layer_size);
-            cpu_matrix::m_copy_row(train_y, my_batch_y, my_batch_indices[i], i, train_rows, my_batch_size, train_y_cols);
-        }
+        cuda_matrix::to<float>(b4, d_b4, output_layer_size, 1, "gpu");
 
         // Copying batch data to device memory
         cuda_matrix::to<float>(my_batch_x, d_my_batch_x, my_batch_size, input_layer_size, "gpu");
@@ -560,9 +570,8 @@ void training_loop_gpu(
 
         cuda_matrix::to<float>(y_pred, d_z4, my_batch_size, output_layer_size, "cpu");
 
-
         // Backward pass
-        cuda_matrix::m_transpose(d_w1, d_w1_T, input_layer_size, hidden_layer_size); // Transpose weights for backward pass
+        cuda_matrix::m_transpose(d_w1, d_w1_T, input_layer_size, hidden_layer_size);
         cuda_matrix::m_transpose(d_w2, d_w2_T, hidden_layer_size, hidden_layer_size);
         cuda_matrix::m_transpose(d_w3, d_w3_T, hidden_layer_size, hidden_layer_size);
         cuda_matrix::m_transpose(d_w4, d_w4_T, hidden_layer_size, output_layer_size);
@@ -573,9 +582,7 @@ void training_loop_gpu(
 
         cuda_matrix::m_index_to_one_hot(d_my_batch_y, d_y_targ, my_batch_size, output_layer_size);
 
-
         backward_pass_gpu(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
-
 
         cuda_matrix::to<float>(dw1, d_dw1, input_layer_size, hidden_layer_size, "cpu");
         cuda_matrix::to<float>(dw2, d_dw2, hidden_layer_size, hidden_layer_size, "cpu");
@@ -666,6 +673,19 @@ void training_loop_gpu(
     else
     {
         MPI_Reduce(&duration, NULL, 1, MPI_DOUBLE, MPI_MAX, MASTER_RANK, MPI_COMM_WORLD);
+    }
+
+    if (save_model && my_rank == MASTER_RANK)
+    {
+        std::cout << "Saving model..." << std::endl;
+        write_matrix_to_file(save_dir + "w1_gpu.csv", w1, input_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w2_gpu.csv", w2, hidden_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w3_gpu.csv", w3, hidden_layer_size, hidden_layer_size);
+        write_matrix_to_file(save_dir + "w4_gpu.csv", w4, hidden_layer_size, output_layer_size);
+        write_matrix_to_file(save_dir + "b1_gpu.csv", b1, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b2_gpu.csv", b2, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b3_gpu.csv", b3, 1, hidden_layer_size);
+        write_matrix_to_file(save_dir + "b4_gpu.csv", b4, 1, output_layer_size);
     }
 
     // Freeing memory

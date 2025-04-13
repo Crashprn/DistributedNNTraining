@@ -3,6 +3,7 @@
 #include "matrix_utils.hpp"
 #include "c_matrix_utils.cuh"
 #include "nn_utils.hpp"
+#include "data_utils.hpp"
 
 #include <tuple>
 #include <iostream>
@@ -23,7 +24,9 @@ void training_loop_cpu(
     float learning_rate,
     int my_rank,
     int comm_size,
-    int MASTER_RANK
+    int MASTER_RANK,
+    bool save_model,
+    const std::string& save_dir
 );
 
 void training_loop_gpu(
@@ -39,7 +42,9 @@ void training_loop_gpu(
     float learning_rate,
     int my_rank,
     int comm_size,
-    int MASTER_RANK
+    int MASTER_RANK,
+    bool save_model,
+    const std::string& save_dir
 );
 
 

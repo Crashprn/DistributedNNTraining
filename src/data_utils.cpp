@@ -40,6 +40,35 @@ void read_matrix_from_file(const std::string& filename, float* matrix, int rows,
     input_stream.close();
 }
 
+void write_matrix_to_file(const std::string& filename, const float* matrix, int rows, int cols)
+{
+    std::ofstream output_stream;
+
+    std::filesystem::path path = std::filesystem::current_path();
+    path /= filename;
+    std::string full_path = path.string();
+
+    output_stream.open(full_path);
+    if (output_stream.fail())
+    {
+        throw std::runtime_error("Could not open file: " + full_path);
+    }
+
+    for (int i = 0; i < rows; ++i)
+    {
+        for (int j = 0; j < cols; ++j)
+        {
+            output_stream << matrix[i * cols + j];
+            if (j < cols - 1)
+            {
+                output_stream << ",";
+            }
+        }
+        output_stream << std::endl;
+    }
+    output_stream.close();
+}
+
 void print_matrix(const float* matrix, int rows, int cols)
 {
     for (int i = 0; i < rows; ++i)
