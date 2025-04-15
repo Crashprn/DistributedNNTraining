@@ -31,21 +31,21 @@ void training_loop_cpu(
     float* w3_T = new float[hidden_layer_size * hidden_layer_size]; // (hidden_layer_size, hidden_layer_size)
     float* w4_T = new float[output_layer_size * hidden_layer_size]; // (output_layer_size, hidden_layer_size)
 
-    float* b1 = new float[hidden_layer_size];
-    float* b2 = new float[hidden_layer_size];
-    float* b3 = new float[hidden_layer_size];
-    float* b4 = new float[output_layer_size];
+    float* b1 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* b2 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* b3 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* b4 = new float[output_layer_size]; // (1, output_layer_size)
 
     // Initializing gradients
-    float* dw1 = new float[input_layer_size * hidden_layer_size];
-    float* dw2 = new float[hidden_layer_size * hidden_layer_size];
-    float* dw3 = new float[hidden_layer_size * hidden_layer_size];
-    float* dw4 = new float[hidden_layer_size * output_layer_size];
+    float* dw1 = new float[input_layer_size * hidden_layer_size]; // (input_layer_size, hidden_layer_size)
+    float* dw2 = new float[hidden_layer_size * hidden_layer_size]; // (hidden_layer_size, hidden_layer_size)
+    float* dw3 = new float[hidden_layer_size * hidden_layer_size]; // (hidden_layer_size, hidden_layer_size)
+    float* dw4 = new float[hidden_layer_size * output_layer_size]; // (hidden_layer_size, output_layer_size)
 
-    float* db1 = new float[hidden_layer_size];
-    float* db2 = new float[hidden_layer_size];
-    float* db3 = new float[hidden_layer_size];
-    float* db4 = new float[output_layer_size];
+    float* db1 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* db2 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* db3 = new float[hidden_layer_size]; // (1, hidden_layer_size)
+    float* db4 = new float[output_layer_size]; // (1, output_layer_size)
     
     // Calculating batch size for each process
     float batch_size_f = static_cast<float>(glob_batch_size);
@@ -56,35 +56,35 @@ void training_loop_cpu(
     }
 
     // Initializing z values for each layer
-    float* z1 = new float[my_batch_size * hidden_layer_size];
-    float* z2 = new float[my_batch_size * hidden_layer_size];
-    float* z3 = new float[my_batch_size * hidden_layer_size];
-    float* z4 = new float[my_batch_size * output_layer_size];
+    float* z1 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* z2 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* z3 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* z4 = new float[my_batch_size * output_layer_size]; // (my_batch_size, output_layer_size)
 
-    // Initializing a values for each layer * z4 will be a4
-    float* a1 = new float[my_batch_size * hidden_layer_size];
-    float* a2 = new float[my_batch_size * hidden_layer_size];
-    float* a3 = new float[my_batch_size * hidden_layer_size];
+    // Initializing a values for each layer (z4 will be a4)
+    float* a1 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* a2 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* a3 = new float[my_batch_size * hidden_layer_size]; // (my_batch_size, hidden_layer_size)
 
     // Initializing intermediates for backward pass
-    float* a3_T = new float[hidden_layer_size*my_batch_size];
-    float* a2_T = new float[hidden_layer_size*my_batch_size];
-    float* a1_T = new float[hidden_layer_size*my_batch_size];
+    float* a3_T = new float[hidden_layer_size*my_batch_size]; // (hidden_layer_size, my_batch_size)
+    float* a2_T = new float[hidden_layer_size*my_batch_size]; // (hidden_layer_size, my_batch_size)
+    float* a1_T = new float[hidden_layer_size*my_batch_size]; // (hidden_layer_size, my_batch_size)
 
-    float* delta3 = new float[my_batch_size*hidden_layer_size];
-    float* delta2 = new float[my_batch_size*hidden_layer_size];
-    float* delta1 = new float[my_batch_size*hidden_layer_size];
+    float* delta3 = new float[my_batch_size*hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* delta2 = new float[my_batch_size*hidden_layer_size]; // (my_batch_size, hidden_layer_size)
+    float* delta1 = new float[my_batch_size*hidden_layer_size]; // (my_batch_size, hidden_layer_size)
 
     // Initializing an output matrix and class vector
-    float* y_pred = new float[my_batch_size * output_layer_size];
-    float* y_targ = new float[my_batch_size * output_layer_size];
-    int* y_class = new int[my_batch_size * 1];
+    float* y_pred = new float[my_batch_size * output_layer_size]; // (my_batch_size, output_layer_size)
+    float* y_targ = new float[my_batch_size * output_layer_size]; // (my_batch_size, output_layer_size)
+    int* y_class = new int[my_batch_size * 1]; // (my_batch_size, 1)
 
     // Creating matrices for batch of data
     float* my_batch_x = new float[my_batch_size * input_layer_size]; // batch_size x input_layer_size
     float* my_batch_x_T = new float[input_layer_size * my_batch_size]; // input_layer_size x batch_size
-    float* my_batch_y = new float[my_batch_size * train_y_cols]; // batch_size x 1
-    int* my_batch_indices = new int[my_batch_size];
+    float* my_batch_y = new float[my_batch_size * 1]; // batch_size x 1
+    int* my_batch_indices = new int[my_batch_size]; // indices for scattering
 
     // Creating random devices for sampling
     std::random_device rd;
