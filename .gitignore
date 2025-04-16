@@ -3,3 +3,4 @@
 /data/MNIST/
 data/mnist_*
 model_saves/*
+figures/*

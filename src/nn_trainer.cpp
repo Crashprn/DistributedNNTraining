@@ -175,7 +175,7 @@ void training_loop_cpu(
     {
         if (my_rank == MASTER_RANK)
         {
-            random_index(batch_indices, glob_batch_size, train_rows, unif);
+            random_indices(batch_indices, glob_batch_size, train_rows, unif);
         }
 
         // Scattering batch indices
@@ -192,7 +192,7 @@ void training_loop_cpu(
         }
 
         // Forward pass
-        forward_pass(weights, biases, b_input, z_values, a_values, dims); 
+        forward_pass_cpu(weights, biases, b_input, z_values, a_values, dims); 
 
         cpu_matrix::m_copy(z4, y_pred, my_batch_size, output_layer_size);
 
@@ -208,7 +208,7 @@ void training_loop_cpu(
 
         cpu_matrix::m_index_to_one_hot(my_batch_y, y_targ, my_batch_size, output_layer_size);
 
-        backward_pass(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
+        backward_pass_cpu(weights_T, weight_grads, bias_grads, b_input_T, target, z_values, a_values_T, deltas, dims);
         }
 
         // Reduce gradients
@@ -536,7 +536,7 @@ void training_loop_gpu(
     {
         if (my_rank == MASTER_RANK)
         {
-            random_index(batch_indices, glob_batch_size, train_rows, unif);
+            random_indices(batch_indices, glob_batch_size, train_rows, unif);
         }
 
         // Scattering batch indices

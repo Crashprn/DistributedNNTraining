@@ -3,7 +3,6 @@
 float cross_entropy_loss(float* y_hat, float* y, int rows, int cols)
 {
     float loss = 0.0;
-    //#pragma omp for reduction(+:loss)
     for (int i = 0; i < rows; ++i)
     {
         int col_idx = static_cast<int>(y[i]);
@@ -15,7 +14,6 @@ float cross_entropy_loss(float* y_hat, float* y, int rows, int cols)
 float accuracy(const int* y_hat, const float* y, int rows)
 {
     int correct = 0;
-    //#pragma omp for reduction(+:correct)
     for (int i = 0; i < rows; ++i)
     {
         int label = static_cast<int>(y[i]);
@@ -60,7 +58,7 @@ void m_constant_weight_init(float* weight_mat, int rows, int cols, float value)
     }
 }
 
-void forward_pass(
+void forward_pass_cpu(
     std::tuple<float*, float*, float*, float*> &weights, 
     std::tuple<float*, float*, float*, float*> &biases,
     std::tuple<float*, int, int> input,
@@ -165,8 +163,6 @@ void forward_pass_gpu(
     cuda_matrix::m_copy(d_z1, d_a1, batch_size, h1); // d_z1 -> inter1
     cuda_matrix::m_Relu(d_a1, batch_size, h1); // (batch_size, h1) -> (batch_size, h1)
 
-
-
     // Layer 2
     cuda_matrix::m_mul(d_a1, d_w2, d_z2, batch_size, h1, h1, h2); // (batch_size, h1) * (h1, h2) -> (batch_size, h2)
     cuda_matrix::m_add_v(d_z2, d_b2, batch_size, h2, 1, h2); // (batch_size, h2) + (,h2) -> (batch_size, h2)
@@ -178,7 +174,6 @@ void forward_pass_gpu(
     cuda_matrix::m_add_v(d_z3, d_b3, batch_size, h3, 1, h3); // (batch_size, h3) + (,h3) -> (batch_size, h3)
     cuda_matrix::m_copy(d_z3, d_a3, batch_size, h3); // d_z3 -> inter3
     cuda_matrix::m_Relu(d_a3, batch_size, h3); // (batch_size, h3) -> (batch_size, h3)
-    
 
     // Layer 4
     cuda_matrix::m_mul(d_a3, d_w4, d_z4, batch_size, h3, h3, out_dim); // (batch_size, h3) * (h3, out_dim) -> (batch_size, out_dim)
@@ -186,7 +181,7 @@ void forward_pass_gpu(
     cuda_matrix::m_softmax(d_z4, batch_size, out_dim); // (batch_size, out_dim) -> (batch_size, out_dim)
 }
 
-void backward_pass(
+void backward_pass_cpu(
     std::tuple<float*, float*, float*> &weights_T, 
     std::tuple<float*, float*, float*, float*> &weight_grads,
     std::tuple<float*, float*, float*, float*> &bias_grads,

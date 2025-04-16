@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
 
-
+    // Getting comman line arguments
     if (argc < 5)
     {
         std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size> <device>" << std::endl;
@@ -34,6 +34,8 @@ int main(int argc, char* argv[])
         num_epochs = std::stoi(argv[2]);
         batch_size = std::stoi(argv[3]);
         std::string device = argv[4];
+
+        // Determining if the device is CPU or GPU
         if (device == "cpu" || device == "CPU")
         {
             is_cpu = 1;
@@ -57,15 +59,18 @@ int main(int argc, char* argv[])
         }
     }
 
+    // Broadcast the parameters to all processes
     MPI_Bcast(&threads, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&num_epochs, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&batch_size, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD);
     MPI_Bcast(&is_cpu, 1, MPI_INT, MASTER_RANK, MPI_COMM_WORLD); 
 
+    // Set the number of threads for OpenMP
     omp_set_num_threads(threads);
     
+    // Load MNIST dataset
     int mnist_cols = 28*28;
-    int mnist_rows = 20000;
+    int mnist_rows = 60000;
 
     float* mnist_train_x = new float[mnist_rows * mnist_cols];
     float* mnist_train_y = new float[mnist_rows * 1];
@@ -85,8 +90,10 @@ int main(int argc, char* argv[])
         return 1;
     }
 
+    // Normalize the MNIST data
     cpu_matrix::m_scalar_mul(mnist_train_x, 1.0f/255.0f, mnist_rows, mnist_cols);
 
+    // Defining neural network parameters
     int input_layer_size = mnist_cols;
     int hidden_layer_size = 300;
     int output_layer_size = 10;
@@ -115,7 +122,7 @@ int main(int argc, char* argv[])
             my_rank,
             comm_size,
             MASTER_RANK,
-            true,
+            false,
             save_dir
         );
     }
@@ -139,7 +146,7 @@ int main(int argc, char* argv[])
             my_rank,
             comm_size,
             MASTER_RANK,
-            true,
+            false,
             save_dir
         );
     }
