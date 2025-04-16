@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
     // Getting comman line arguments
     if (argc < 5)
     {
-        std::cerr << "Usage: " << argv[0] << " <num_threads> <num_epochs> <batch_size> <device>" << std::endl;
+        std::cerr << "Usage: " << argv[0] << " <num threads or block size> <num_epochs> <batch_size> <device>" << std::endl;
     }
 
     if (my_rank == MASTER_RANK)
