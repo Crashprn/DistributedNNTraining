@@ -756,7 +756,7 @@ void training_loop_gpu(
 }
 
 // DO NOT MULTITHREAD THIS FUNCTION: Distribution is not thread safe
-void random_index(int* batch_indices, int size, int max_value, std::mt19937& gen)
+void random_indices(int* batch_indices, int size, int max_value, std::mt19937& gen)
 {
     std::uniform_int_distribution<> dis(0, max_value - 1);
     for (int i = 0; i < size; ++i)
